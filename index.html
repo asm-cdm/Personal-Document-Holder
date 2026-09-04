@@ -112,7 +112,6 @@
     box-shadow: 0 4px 12px rgba(0,0,0,.15);
   }
   
-  /* CLICKABLE & ROTATING ARROW STYLING */
   .dropdown-arrow {
     position: absolute;
     right: 12px;
@@ -129,19 +128,12 @@
     align-items: center;
     justify-content: center;
   }
-  .dropdown-arrow:hover {
-    background: #f0f0f0;
-    color: var(--brand-dark);
-  }
-  .active .dropdown-arrow, .open .dropdown-arrow {
-    transform: translateY(-50%) rotate(180deg);
-  }
+  .dropdown-arrow:hover { background: #f0f0f0; color: var(--brand-dark); }
+  .active .dropdown-arrow, .open .dropdown-arrow { transform: translateY(-50%) rotate(180deg); }
 
   .dropdown-menu {
     position:absolute;
-    top:100%;
-    left:0;
-    right:0;
+    top:100%; left:0; right:0;
     background:#fff;
     border:1px solid var(--border);
     border-top:none;
@@ -166,13 +158,7 @@
   .dd-item .dd-info { flex:1; overflow:hidden; }
   .dd-item .dd-name{ font-weight:600; color:var(--brand-dark); font-size: 0.95rem; display:block; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; }
   .dd-item .dd-num{ font-size:.8rem; color:var(--muted); }
-  .dd-action-item {
-    background: #eef6ff;
-    color: var(--brand-dark);
-    font-weight: 700;
-    border-top: 2px dashed var(--brand);
-  }
-  .dd-action-item:hover { background: #dcebfb; }
+  .dd-action-item { background: #eef6ff; color: var(--brand-dark); font-weight: 700; border-top: 2px dashed var(--brand); }
 
   .inline-row { display: flex; gap: 8px; align-items: center; width: 100%; }
   .inline-row > div { flex: 1; }
@@ -201,27 +187,68 @@
   .field-row .field-val{color:var(--muted);font-size:.85rem;display:block;}
   .field-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--brand);}
 
-  .files-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(90px,1fr));
-    gap:10px;
-    margin-top:10px;
+  /* UNIFIED FILE PREVIEW GRID STYLING */
+  .file-list-wrap {
+    margin-top: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    background: #fafafa;
   }
-  .file-thumb{
-    border:1px solid var(--border);
-    border-radius:8px;
-    padding:6px;
-    text-align:center;
-    background:#fafafa;
-    font-size:.7rem;
-    position:relative;
+
+  .file-grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
   }
-  .file-thumb img{width:100%;height:60px;object-fit:cover;border-radius:4px;}
-  .file-thumb .pdf-icon{
-    width:100%;height:60px;display:flex;align-items:center;justify-content:center;
-    background:var(--brand-light);border-radius:4px;font-size:1.6rem;color:var(--brand);
+
+  .file-item-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
   }
-  .file-thumb .file-name{ display:block;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  
+  .file-header { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; width: 100%; }
+  .file-header .file-item-name { 
+    flex: 1; 
+    font-weight: 600; 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+  }
+  
+  .file-preview-box {
+    margin-top: 6px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #f0f0f0;
+    text-align: center;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .file-preview-box img { 
+    width: 100%; 
+    height: 100%; 
+    object-fit: cover; 
+  }
+  .pdf-badge-box {
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--brand-dark);
+    font-weight: bold;
+    font-size: 0.75rem;
+    gap: 4px;
+    text-align: center;
+  }
 
   .btn{
     display:inline-block;
@@ -238,17 +265,18 @@
   .btn-primary:disabled{background:#a0b4c8;cursor:not-allowed;}
   .btn-whatsapp{background:var(--accent);color:#fff;width:100%;font-size:1rem;padding:13px;margin-top:14px;}
   .btn-outline{background:#fff;color:var(--brand-dark);border:1px solid var(--brand);}
+  .btn-secondary{background:#6c757d;color:#fff;}
   .btn-danger{background:#fff;color:var(--danger);border:1px solid var(--danger);}
   .btn-row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
-  .btn-row .btn{flex:1;min-width:110px;}
-  .btn-sm{padding: 5px 10px; font-size: 0.8rem; border-radius: 4px; margin-left: 4px;}
+  .btn-row .btn{flex:1;min-width:90px;}
+  .btn-sm{padding: 5px 10px; font-size: 0.8rem; border-radius: 4px;}
 
   form label{display:block;font-size:.85rem;color:var(--muted);margin:12px 0 4px;font-weight:600;}
   form input[type=text],form textarea{
     width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:8px;font-size:.95rem;background:#fff;
   }
   form input:focus,form textarea:focus{outline:none;border-color:var(--brand);}
-  .file-input-wrap{ border:2px dashed var(--border); border-radius:10px; padding:16px; text-align:center; margin-top:6px; color:var(--muted); font-size:.85rem; }
+  .file-input-wrap{ border:1px solid var(--border); border-radius:10px; padding:10px; margin-top:6px; background:#fafafa; }
   .hint{font-size:.75rem;color:var(--muted);margin-top:4px;}
   .toast{
     position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
@@ -269,16 +297,11 @@
   th, td { text-align: left; padding: 0.6rem 0.4rem; border-bottom: 1px solid var(--border); }
   th { background-color: #f1f5f9; color: #334155; }
 
-  #addDocTypeModal {
-    display:none; position:fixed; top:0;left:0;width:100vw;height:100vh; background:rgba(0,0,0,0.5); z-index:9998; align-items:center;justify-content:center;padding:16px;
+  /* MODALS */
+  .modal {
+    display:none; position:fixed; top:0;left:0;width:100vw;height:100vh; background:rgba(0,0,0,0.6); z-index:9998; align-items:center;justify-content:center;padding:16px;
   }
-  #addDocTypeModal .modal-content { background:#fff;border-radius:var(--radius);padding:20px;width:100%;max-width:500px; max-height: 90vh; overflow-y: auto; }
-  #previewModal { display:none;position:fixed;top:0;left:0;width:100vw;height:100vh; background:rgba(0,0,0,0.95);z-index:9999;flex-direction:column;padding:10px; }
-  .modal-header { width:100%; max-width:800px; margin:0 auto; display:flex; justify-space-between; align-items:center; padding:8px 0; }
-  .modal-title { color:#fff; font-size:0.95rem; font-weight:600; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; }
-  .modal-close-btn { background:var(--danger); color:#fff; border:none; padding:8px 18px; border-radius:20px; font-weight:bold; cursor:pointer; }
-  #previewContainer { width:100%; max-width:800px; flex:1; margin:0 auto; display:flex; justify-content:center; align-items:center; overflow:auto; background:#1e1e1e; border-radius:8px; }
-  .modal-actions { display:flex; flex-direction:column; gap:8px; width:100%; max-width:400px; margin:10px auto 0; }
+  .modal-content { background:#fff;border-radius:var(--radius);padding:20px;width:100%;max-width:500px; max-height: 90vh; overflow-y: auto; }
 </style>
 </head>
 <body>
@@ -327,15 +350,18 @@
       </div>
 
       <div id="rdFilesWrap">
-        <label style="font-size:.8rem;color:var(--muted);font-weight:600;margin-top:10px;display:block;">Attached Files (tap to view)</label>
-        <div class="files-grid" id="rdFilesGrid"></div>
+        <label style="font-size:.8rem;color:var(--muted);font-weight:600;margin-top:14px;display:block;">Attached Files (Select to share via WhatsApp)</label>
+        <div class="file-list-wrap">
+          <div class="file-grid-container" id="rdFilesList"></div>
+        </div>
       </div>
 
-      <button class="btn btn-whatsapp" onclick="shareSelectedOnWhatsApp()">Share Selected via WhatsApp</button>
+      <button class="btn btn-whatsapp" onclick="shareSelectedOnWhatsApp()">Share Document & Files</button>
 
       <div class="btn-row">
         <button class="btn btn-outline" onclick="editCurrentRecord()">Edit Details</button>
         <button class="btn btn-danger" onclick="deleteCurrentRecord()">Delete Record</button>
+        <button class="btn btn-secondary" onclick="closeRecordDetail()">Close</button>
       </div>
     </div>
   </section>
@@ -376,7 +402,10 @@
 
         <label for="fFiles">Upload Documents (PDF / JPEG / PNG, max 5 uploads)</label>
         <input type="file" id="fFiles" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" multiple onchange="handleFileSelect(event)">
-        <div class="file-input-wrap" id="existingFilesWrap" style="display:none;"></div>
+        
+        <div class="file-input-wrap" id="existingFilesWrap" style="display:none;">
+          <div class="file-grid-container" id="existingFilesGrid"></div>
+        </div>
         <div class="hint">Up to 5 files allowed.</div>
 
         <div class="btn-row">
@@ -419,7 +448,7 @@
 <div class="toast" id="toast"></div>
 
 <!-- DOCUMENT TYPE ADD/EDIT POPUP MODAL -->
-<div id="addDocTypeModal">
+<div id="addDocTypeModal" class="modal">
   <div class="modal-content">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
       <h3 style="margin:0; color:var(--brand-dark);">Manage Document Types</h3>
@@ -446,21 +475,14 @@
   </div>
 </div>
 
-<!-- PREVIEW MODAL -->
-<div id="previewModal">
-  <div class="modal-header">
-    <span id="previewTitle" class="modal-title"></span>
-    <button onclick="closePreviewModal()" class="modal-close-btn">✕ Close</button>
-  </div>
-
-  <div id="previewContainer"></div>
-
-  <div class="modal-actions">
-    <div style="display:flex; gap:10px; width:100%;">
-      <button id="previewNativeBtn" onclick="openNativeZoom()" class="btn btn-outline" style="flex:1; background:#fff; color:#333; font-size:0.8rem; padding:10px;">External Viewer</button>
-      <button id="previewDownloadBtn" onclick="downloadCurrentFile()" class="btn btn-primary" style="flex:1; font-size:0.8rem; padding:10px;">Download</button>
+<!-- FILE VIEW MODAL -->
+<div id="fileViewerModal" class="modal">
+  <div class="modal-content" style="max-width: 650px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <h3 id="viewerTitle" style="margin:0; font-size:1rem; color:var(--brand-dark); word-break:break-all;">File Viewer</h3>
+      <button type="button" class="btn btn-danger btn-sm" onclick="closeFileViewer()">Close</button>
     </div>
-    <button id="previewRemoveBtn" onclick="removeCurrentImageFromView()" class="btn btn-danger" style="width:100%; font-size:0.8rem; padding:10px;">Remove File</button>
+    <div id="viewerContent" style="width:100%; min-height:300px; display:flex; align-items:center; justify-content:center; background:#f0f0f0; border-radius:8px; overflow:hidden;"></div>
   </div>
 </div>
 
@@ -477,8 +499,6 @@ const CONFIG = {
 let db = null;
 let allRecordsCache = [];
 let currentRecord = null;
-let currentPreviewFile = null;
-let currentPreviewIndex = -1;
 let pendingNewFiles = [];
 let pendingKeptFiles = [];
 let detectedDuplicateRecord = null;
@@ -493,6 +513,17 @@ function fileToBase64(file) {
     reader.onerror = (err) => reject(err);
     reader.readAsDataURL(file);
   });
+}
+
+function base64ToFile(base64Data, filename, mimeType) {
+  const arr = base64Data.split(',');
+  const bstr = atob(arr[1] || arr[0]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, { type: mimeType });
 }
 
 function openDB() {
@@ -571,7 +602,6 @@ function saveCustomDocTypes() {
   localStorage.setItem('docHolder_customTypes', JSON.stringify(customDocTypes));
 }
 
-/* TOGGLE ARROW FOR SEARCH/VIEW */
 function toggleSearchDropdown(e) {
   e.stopPropagation();
   const dropdown = document.getElementById("searchDropdown");
@@ -583,7 +613,6 @@ function toggleSearchDropdown(e) {
   }
 }
 
-/* SEARCH DROPDOWN WITH ARROW SUPPORT */
 function handleSearchInput() {
   const searchBox = document.getElementById("searchBox");
   const searchDropdown = document.getElementById("searchDropdown");
@@ -637,7 +666,6 @@ function addNewFromSearch(queryText) {
   showToast(`Creating entry for "${queryText}"`);
 }
 
-/* TOGGLE ARROW FOR DOCUMENT TYPE IN ADD/EDIT */
 function toggleDocTypeDropdown(e) {
   e.stopPropagation();
   const dropdown = document.getElementById("docTypeDropdown");
@@ -649,7 +677,6 @@ function toggleDocTypeDropdown(e) {
   }
 }
 
-/* DOCUMENT TYPE DROPDOWN WITH ARROW SUPPORT */
 function handleDocTypeInput() {
   const input = document.getElementById("fDocType");
   const dropdown = document.getElementById("docTypeDropdown");
@@ -705,7 +732,6 @@ function addInlineDocType(typeVal) {
   showToast(`Added type "${typeVal}"`);
 }
 
-/* DOCUMENT TYPE MODULE MODAL LOGIC */
 function openAddDocTypeModal() {
   document.getElementById("modalDocTypeInput").value = '';
   document.getElementById("addDocTypeModal").style.display = "flex";
@@ -909,7 +935,7 @@ function switchTab(tab) {
   document.getElementById("tabAddBtn").classList.toggle("active", tab === "add");
   document.getElementById("tabBackupBtn").classList.toggle("active", tab === "backup");
   if (tab === "search") {
-    document.getElementById("recordDetailCard").style.display = "none";
+    closeRecordDetail();
     renderAllRecordsList();
   }
   if (tab === "backup") updateStorageInfo();
@@ -946,88 +972,141 @@ async function openRecordDetail(id) {
   document.getElementById("recordDetailCard").scrollIntoView({ behavior: "smooth" });
 }
 
+function closeRecordDetail() {
+  document.getElementById("recordDetailCard").style.display = "none";
+  currentRecord = null;
+}
+
 function renderRecordFiles() {
   if (!currentRecord) return;
-  const grid = document.getElementById("rdFilesGrid");
-  grid.innerHTML = "";
-  (currentRecord.files || []).forEach((f, idx) => {
+  const list = document.getElementById("rdFilesList");
+  list.innerHTML = "";
+  
+  if (!currentRecord.files || currentRecord.files.length === 0) {
+    list.innerHTML = `<span style="font-size:0.8rem; color:var(--muted); grid-column: 1 / -1;">No attached files.</span>`;
+    return;
+  }
+
+  currentRecord.files.forEach((f, idx) => {
     const isImage = f.type && f.type.startsWith("image/");
-    grid.innerHTML += `
-      <div class="file-thumb" onclick="triggerPreview(${idx})" style="cursor:pointer;">
-        ${isImage ? `<img src="${f.data}">` : `<div class="pdf-icon">PDF</div>`}
-        <span class="file-name">${escapeHtml(f.name)}</span>
-        <span style="font-size:.65rem; color:var(--brand); font-weight:bold;">View</span>
+    const isPdf = f.type && f.type.includes("pdf");
+
+    let previewHtml = '';
+    if (isImage) {
+      previewHtml = `
+        <div class="file-preview-box" onclick="openFileViewer(${idx})">
+          <img src="${f.data}" alt="${escapeHtml(f.name)}">
+        </div>`;
+    } else if (isPdf) {
+      previewHtml = `
+        <div class="file-preview-box" onclick="openFileViewer(${idx})">
+          <div class="pdf-badge-box">
+            <span style="font-size:1.5rem;">📄</span>
+            <span>View PDF</span>
+          </div>
+        </div>`;
+    }
+
+    list.innerHTML += `
+      <div class="file-item-card">
+        <div class="file-header">
+          <input type="checkbox" class="shareFileChk" id="chkFile_${idx}" value="${idx}" checked>
+          <label for="chkFile_${idx}" class="file-item-name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</label>
+        </div>
+        ${previewHtml}
       </div>`;
   });
 }
 
-function triggerPreview(idx) {
-  if (!currentRecord || !currentRecord.files[idx]) return;
-  const f = currentRecord.files[idx];
-  openPreviewModal(f.name, f.type, f.data, idx);
-}
+function openFileViewer(index) {
+  if (!currentRecord || !currentRecord.files[index]) return;
+  const file = currentRecord.files[index];
+  const viewerModal = document.getElementById("fileViewerModal");
+  const viewerTitle = document.getElementById("viewerTitle");
+  const viewerContent = document.getElementById("viewerContent");
 
-function openPreviewModal(fileName, fileType, base64Data, idx = -1) {
-  currentPreviewFile = { name: fileName, type: fileType, data: base64Data };
-  currentPreviewIndex = idx;
-
-  const modal = document.getElementById("previewModal");
-  const container = document.getElementById("previewContainer");
-  const titleEl = document.getElementById("previewTitle");
-
-  titleEl.textContent = fileName;
-  container.innerHTML = "";
-
-  const isPdf = (fileType && fileType.includes("pdf")) || (fileName && fileName.toLowerCase().endsWith(".pdf"));
-
-  if (isPdf) {
-    container.innerHTML = `<iframe src="${base64Data}" style="width:100%; height:100%; border:none;"></iframe>`;
+  viewerTitle.textContent = file.name;
+  
+  if (file.type && file.type.startsWith("image/")) {
+    viewerContent.innerHTML = `<img src="${file.data}" style="max-width:100%; max-height:70vh; object-fit:contain;">`;
+  } else if (file.type && file.type.includes("pdf")) {
+    viewerContent.innerHTML = `<iframe src="${file.data}" style="width:100%; height:70vh; border:none;"></iframe>`;
   } else {
-    container.innerHTML = `<img src="${base64Data}" style="max-width:100%; max-height:100%; object-fit:contain;">`;
+    viewerContent.innerHTML = `<p style="padding:20px;">Preview unavailable for this format.</p>`;
   }
-  modal.style.display = "flex";
+
+  viewerModal.style.display = "flex";
 }
 
-function closePreviewModal() {
-  document.getElementById("previewModal").style.display = "none";
-  document.getElementById("previewContainer").innerHTML = "";
+function closeFileViewer() {
+  document.getElementById("fileViewerModal").style.display = "none";
+  document.getElementById("viewerContent").innerHTML = "";
 }
 
-async function removeCurrentImageFromView() {
-  if (!currentRecord || currentPreviewIndex < 0) return;
-  if (!confirm(`Delete file "${currentRecord.files[currentPreviewIndex].name}"?`)) return;
-
-  currentRecord.files.splice(currentPreviewIndex, 1);
-  await dbPut(currentRecord);
-  await refreshCache();
-  renderRecordFiles();
-  closePreviewModal();
-  showToast("File removed");
-}
-
-function downloadCurrentFile() {
-  if (!currentPreviewFile) return;
-  const a = document.createElement("a");
-  a.href = currentPreviewFile.data;
-  a.download = currentPreviewFile.name;
-  a.click();
-}
-
-function openNativeZoom() {
-  if (!currentPreviewFile) return;
-  const w = window.open();
-  w.document.write(`<iframe src="${currentPreviewFile.data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-}
-
+/* ENHANCED FILE SHARING WITH TYPE VALIDATION */
 async function shareSelectedOnWhatsApp() {
   if (!currentRecord) return;
+
+  const fileCheckboxes = document.querySelectorAll(".shareFileChk:checked");
+  if (fileCheckboxes.length === 0) {
+    showToast("Please select at least one file to share.");
+    return;
+  }
+
+  const selectedFiles = [];
+  let hasImage = false;
+  let hasPdf = false;
+
+  fileCheckboxes.forEach(cb => {
+    const idx = parseInt(cb.value);
+    if (currentRecord.files && currentRecord.files[idx]) {
+      const f = currentRecord.files[idx];
+      const isImage = f.type && f.type.startsWith("image/");
+      const isPdf = f.type && f.type.includes("pdf");
+
+      if (isImage) hasImage = true;
+      if (isPdf) hasPdf = true;
+
+      const actualFile = base64ToFile(f.data, f.name, f.type || 'application/pdf');
+      selectedFiles.push(actualFile);
+    }
+  });
+
+  // PREVENT MIXING IMAGES AND PDFS IN A SINGLE SHARE
+  if (hasImage && hasPdf) {
+    alert("Warning: You cannot share Images and PDFs together in a single action. Please select ONLY Images or ONLY PDFs.");
+    return;
+  }
+
   const lines = [];
   if (document.getElementById("chkDocType").checked) lines.push("Document Type: " + currentRecord.docType);
   if (document.getElementById("chkItemName").checked) lines.push("Item Name: " + currentRecord.itemName);
   if (currentRecord.remarks && document.getElementById("chkRemarks").checked) lines.push("Remarks: " + currentRecord.remarks);
+  const textDetails = lines.join("\n");
 
-  const text = lines.join("\n");
-  window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
+  if (navigator.canShare && navigator.canShare({ files: selectedFiles })) {
+    try {
+      await navigator.share({
+        title: currentRecord.docType + " - " + currentRecord.itemName,
+        text: textDetails,
+        files: selectedFiles
+      });
+      showToast("Shared successfully!");
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error("Native share error:", err);
+        fallbackWhatsAppTextShare(textDetails);
+      }
+    }
+  } else {
+    alert("Your browser or device does not support direct file sharing. Opening text preview instead.");
+    fallbackWhatsAppTextShare(textDetails);
+  }
+}
+
+function fallbackWhatsAppTextShare(text) {
+  const whatsappUrl = "https://wa.me/?text=" + encodeURIComponent(text);
+  window.open(whatsappUrl, "_blank");
 }
 
 async function handleFileSelect(e) {
@@ -1045,17 +1124,47 @@ async function handleFileSelect(e) {
 
 function renderExistingFilesPreview() {
   const wrap = document.getElementById("existingFilesWrap");
+  const grid = document.getElementById("existingFilesGrid");
+  
   const all = [...pendingKeptFiles.map((f, i) => ({ ...f, _kind: "kept", _idx: i })),
                ...pendingNewFiles.map((f, i) => ({ ...f, _kind: "new", _idx: i }))];
-  if (all.length === 0) { wrap.style.display = "none"; return; }
+               
+  if (all.length === 0) { 
+    wrap.style.display = "none"; 
+    grid.innerHTML = "";
+    return; 
+  }
+
   wrap.style.display = "block";
-  wrap.innerHTML = '<div class="files-grid">' + all.map(f => `
-    <div class="file-thumb">
-      <button type="button" onclick="removePendingFile('${f._kind}', ${f._idx})" style="position:absolute;top:2px;right:2px;border:none;background:var(--danger);color:#fff;border-radius:50%;width:18px;height:18px;font-size:.7rem;cursor:pointer;">✕</button>
-      ${f.type && f.type.startsWith("image/") ? `<img src="${f.data}">` : `<div class="pdf-icon">PDF</div>`}
-      <span class="file-name">${escapeHtml(f.name)}</span>
-    </div>
-  `).join("") + "</div>";
+  grid.innerHTML = all.map(f => {
+    const isImage = f.type && f.type.startsWith("image/");
+    const isPdf = f.type && f.type.includes("pdf");
+
+    let previewHtml = '';
+    if (isImage) {
+      previewHtml = `
+        <div class="file-preview-box">
+          <img src="${f.data}" alt="${escapeHtml(f.name)}">
+        </div>`;
+    } else if (isPdf) {
+      previewHtml = `
+        <div class="file-preview-box">
+          <div class="pdf-badge-box">
+            <span style="font-size:1.5rem;">📄</span>
+            <span>PDF File</span>
+          </div>
+        </div>`;
+    }
+
+    return `
+      <div class="file-item-card">
+        <div class="file-header">
+          <span class="file-item-name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span>
+        </div>
+        ${previewHtml}
+        <button type="button" class="btn btn-sm btn-danger" style="margin-top:6px; width:100%;" onclick="removePendingFile('${f._kind}', ${f._idx})">✕ Remove</button>
+      </div>`;
+  }).join("");
 }
 
 function removePendingFile(kind, idx) {
@@ -1131,7 +1240,7 @@ async function deleteCurrentRecord() {
   if (!confirm(`Delete "${currentRecord.docType} - ${currentRecord.itemName}"?`)) return;
   await dbDelete(currentRecord.id);
   await refreshCache();
-  document.getElementById("recordDetailCard").style.display = "none";
+  closeRecordDetail();
   renderAllRecordsList();
   showToast("Record deleted");
 }
@@ -1140,7 +1249,7 @@ async function exportBackup() {
   const records = await dbGetAll();
   const blob = new Blob([JSON.stringify({ records }, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
+  a.href = URL.createObjectURL ? URL.createObjectURL(blob) : "";
   a.download = "backup_" + new Date().toISOString().slice(0,10) + ".json";
   a.click();
 }
