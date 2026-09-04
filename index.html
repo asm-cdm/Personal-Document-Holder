@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Personal Document Holder</title>
+
+<style>
+  :root{
+    --brand:#2e5b8a;
+    --brand-dark:#1f3c5e;
+    --brand-light:#e8f0f8;
+    --accent:#25d366;
+    --bg:#f5f7fa;
+    --card:#ffffff;
+    --text:#222b33;
+    --muted:#717a85;
+    --border:#dbe3e9;
+    --danger:#c0392b;
+    --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    padding-bottom:70px;
+    -webkit-text-size-adjust:100%;
+  }
+  header{
+    background:linear-gradient(135deg,var(--brand),var(--brand-dark));
+    color:#fff;
+    padding:18px 16px 14px;
+    text-align:center;
+    box-shadow:0 2px 10px rgba(0,0,0,.15);
+    position:sticky;
+    top:0;
+    z-index:20;
+  }
+  header .app-title-text{ font-size:1.5rem; font-weight:700; margin:0; }
+  header .subtitle{ font-size:.8rem; opacity:.85; margin-top:2px; }
+  
+  nav.tabs{
+    display:flex;
+    gap:6px;
+    max-width:720px;
+    margin:14px auto 0;
+    padding:0 12px;
+  }
+  nav.tabs button{
+    flex:1;
+    padding:10px 6px;
+    border:none;
+    border-radius:10px;
+    background:var(--card);
+    color:var(--brand-dark);
+    font-weight:600;
+    font-size:.85rem;
+    cursor:pointer;
+    border:1px solid var(--border);
+    transition:.15s;
+  }
+  nav.tabs button.active{
+    background:var(--brand);
+    color:#fff;
+    border-color:var(--brand);
+  }
+  main{
+    max-width:720px;
+    margin:16px auto;
+    padding:0 12px;
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px;
+    margin-bottom:14px;
+    box-shadow:0 1px 4px rgba(0,0,0,.04);
+  }
+
+  .search-wrap, .custom-select-wrap {
+    position:relative;
+    width:100%;
+    margin-bottom:16px;
+  }
+  .search-input-box {
+    position: relative;
+    width: 100%;
+  }
+  #searchBox, .select-input {
+    width:100%;
+    padding:14px 44px 14px 16px;
+    font-size:1rem;
+    border:1px solid var(--border);
+    border-radius:24px;
+    outline:none;
+    background:#fff;
+    transition:all .2s ease;
+    box-shadow:0 2px 6px rgba(0,0,0,.08);
+  }
+  .select-input {
+    padding: 11px 40px 11px 12px;
+    border-radius: 8px;
+    box-shadow: none;
+    font-size: .95rem;
+  }
+  .search-wrap.active #searchBox {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  }
+  
+  /* CLICKABLE & ROTATING ARROW STYLING */
+  .dropdown-arrow {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.85rem;
+    color: var(--muted);
+    transition: transform 0.2s ease;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dropdown-arrow:hover {
+    background: #f0f0f0;
+    color: var(--brand-dark);
+  }
+  .active .dropdown-arrow, .open .dropdown-arrow {
+    transform: translateY(-50%) rotate(180deg);
+  }
+
+  .dropdown-menu {
+    position:absolute;
+    top:100%;
+    left:0;
+    right:0;
+    background:#fff;
+    border:1px solid var(--border);
+    border-top:none;
+    border-bottom-left-radius:16px;
+    border-bottom-right-radius:16px;
+    max-height:280px;
+    overflow-y:auto;
+    box-shadow:0 8px 16px rgba(0,0,0,.15);
+    z-index:1000;
+    display:none;
+  }
+  .dd-item{
+    padding:10px 14px;
+    cursor:pointer;
+    border-top:1px solid #f0f0f0;
+    display:flex;
+    justify-space:space-between;
+    align-items:center;
+    gap: 8px;
+  }
+  .dd-item:hover, .dd-item:active{ background:var(--brand-light); }
+  .dd-item .dd-info { flex:1; overflow:hidden; }
+  .dd-item .dd-name{ font-weight:600; color:var(--brand-dark); font-size: 0.95rem; display:block; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; }
+  .dd-item .dd-num{ font-size:.8rem; color:var(--muted); }
+  .dd-action-item {
+    background: #eef6ff;
+    color: var(--brand-dark);
+    font-weight: 700;
+    border-top: 2px dashed var(--brand);
+  }
+  .dd-action-item:hover { background: #dcebfb; }
+
+  .inline-row { display: flex; gap: 8px; align-items: center; width: 100%; }
+  .inline-row > div { flex: 1; }
+
+  .duplicate-warning {
+    display: none;
+    background: #fff3cd;
+    border: 1px solid #ffeeba;
+    color: #856404;
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 12px;
+    font-size: 0.85rem;
+  }
+
+  .record-detail h3{margin:0 0 10px;color:var(--brand-dark);}
+  .field-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:8px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .field-row:last-of-type{border-bottom:none;}
+  .field-row label{flex:1;font-size:.95rem;}
+  .field-row .field-val{color:var(--muted);font-size:.85rem;display:block;}
+  .field-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--brand);}
+
+  .files-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(90px,1fr));
+    gap:10px;
+    margin-top:10px;
+  }
+  .file-thumb{
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:6px;
+    text-align:center;
+    background:#fafafa;
+    font-size:.7rem;
+    position:relative;
+  }
+  .file-thumb img{width:100%;height:60px;object-fit:cover;border-radius:4px;}
+  .file-thumb .pdf-icon{
+    width:100%;height:60px;display:flex;align-items:center;justify-content:center;
+    background:var(--brand-light);border-radius:4px;font-size:1.6rem;color:var(--brand);
+  }
+  .file-thumb .file-name{ display:block;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+
+  .btn{
+    display:inline-block;
+    padding:11px 18px;
+    border:none;
+    border-radius:8px;
+    font-size:.9rem;
+    font-weight:600;
+    cursor:pointer;
+    text-align:center;
+    text-decoration:none;
+  }
+  .btn-primary{background:var(--brand);color:#fff;}
+  .btn-primary:disabled{background:#a0b4c8;cursor:not-allowed;}
+  .btn-whatsapp{background:var(--accent);color:#fff;width:100%;font-size:1rem;padding:13px;margin-top:14px;}
+  .btn-outline{background:#fff;color:var(--brand-dark);border:1px solid var(--brand);}
+  .btn-danger{background:#fff;color:var(--danger);border:1px solid var(--danger);}
+  .btn-row{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
+  .btn-row .btn{flex:1;min-width:110px;}
+  .btn-sm{padding: 5px 10px; font-size: 0.8rem; border-radius: 4px; margin-left: 4px;}
+
+  form label{display:block;font-size:.85rem;color:var(--muted);margin:12px 0 4px;font-weight:600;}
+  form input[type=text],form textarea{
+    width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:8px;font-size:.95rem;background:#fff;
+  }
+  form input:focus,form textarea:focus{outline:none;border-color:var(--brand);}
+  .file-input-wrap{ border:2px dashed var(--border); border-radius:10px; padding:16px; text-align:center; margin-top:6px; color:var(--muted); font-size:.85rem; }
+  .hint{font-size:.75rem;color:var(--muted);margin-top:4px;}
+  .toast{
+    position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+    background:#333;color:#fff;padding:10px 18px;border-radius:20px;font-size:.85rem;
+    opacity:0;pointer-events:none;transition:.25s;z-index:10000;
+  }
+  .toast.show{opacity:1;bottom:90px;}
+  footer{ position:fixed;bottom:0;left:0;right:0; background:var(--brand-dark);color:#fff; text-align:center;font-size:.75rem;padding:10px; }
+  .empty-state{text-align:center;color:var(--muted);padding:30px 10px;font-size:.9rem;}
+  .record-list-item{ display:flex;justify-space-between;align-items:center; padding:12px 6px;border-bottom:1px solid var(--border);cursor:pointer; }
+  .record-list-item:active{background:var(--brand-light);}
+  .record-list-item .rli-name{font-weight:600;}
+  .record-list-item .rli-num{font-size:.8rem;color:var(--muted);}
+  h2.section-title{font-size:1.05rem;color:var(--brand-dark);margin:0 0 12px;}
+
+  .table-container { overflow-x: auto; margin-top: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 0.6rem 0.4rem; border-bottom: 1px solid var(--border); }
+  th { background-color: #f1f5f9; color: #334155; }
+
+  #addDocTypeModal {
+    display:none; position:fixed; top:0;left:0;width:100vw;height:100vh; background:rgba(0,0,0,0.5); z-index:9998; align-items:center;justify-content:center;padding:16px;
+  }
+  #addDocTypeModal .modal-content { background:#fff;border-radius:var(--radius);padding:20px;width:100%;max-width:500px; max-height: 90vh; overflow-y: auto; }
+  #previewModal { display:none;position:fixed;top:0;left:0;width:100vw;height:100vh; background:rgba(0,0,0,0.95);z-index:9999;flex-direction:column;padding:10px; }
+  .modal-header { width:100%; max-width:800px; margin:0 auto; display:flex; justify-space-between; align-items:center; padding:8px 0; }
+  .modal-title { color:#fff; font-size:0.95rem; font-weight:600; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; }
+  .modal-close-btn { background:var(--danger); color:#fff; border:none; padding:8px 18px; border-radius:20px; font-weight:bold; cursor:pointer; }
+  #previewContainer { width:100%; max-width:800px; flex:1; margin:0 auto; display:flex; justify-content:center; align-items:center; overflow:auto; background:#1e1e1e; border-radius:8px; }
+  .modal-actions { display:flex; flex-direction:column; gap:8px; width:100%; max-width:400px; margin:10px auto 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="app-title-text">Personal Document Holder</div>
+  <div class="subtitle">PDF &amp; File Management Register</div>
+</header>
+
+<nav class="tabs">
+  <button id="tabAddBtn" onclick="openAddTab()">Add / Edit</button>
+  <button id="tabSearchBtn" class="active" onclick="switchTab('search')">Search / View</button>
+  <button id="tabBackupBtn" onclick="switchTab('backup')">Backup / Restore</button>
+</nav>
+
+<main>
+
+  <!-- SEARCH / VIEW TAB -->
+  <section id="tab-search">
+    <div class="card">
+      <div class="search-wrap" id="searchWrap">
+        <div class="search-input-box">
+          <input type="text" id="searchBox" placeholder="Type here to search..." autocomplete="off" oninput="handleSearchInput()" onclick="handleSearchInput()" onfocus="handleSearchInput()">
+          <span class="dropdown-arrow" onclick="toggleSearchDropdown(event)">▼</span>
+        </div>
+        <div id="searchDropdown" class="dropdown-menu"></div>
+      </div>
+      
+      <div id="allRecordsList"></div>
+    </div>
+
+    <div class="card record-detail" id="recordDetailCard" style="display:none;">
+      <h3 id="rdName"></h3>
+
+      <div class="field-row">
+        <input type="checkbox" class="shareField" id="chkDocType" data-field="docType" checked>
+        <label for="chkDocType">Document Type<span class="field-val" id="rdDocTypeVal"></span></label>
+      </div>
+      <div class="field-row">
+        <input type="checkbox" class="shareField" id="chkItemName" data-field="itemName" checked>
+        <label for="chkItemName">Item Name<span class="field-val" id="rdItemNameVal"></span></label>
+      </div>
+      <div class="field-row" id="remarksRow">
+        <input type="checkbox" class="shareField" id="chkRemarks" data-field="remarks">
+        <label for="chkRemarks">Remarks / Notes<span class="field-val" id="rdRemarksVal"></span></label>
+      </div>
+
+      <div id="rdFilesWrap">
+        <label style="font-size:.8rem;color:var(--muted);font-weight:600;margin-top:10px;display:block;">Attached Files (tap to view)</label>
+        <div class="files-grid" id="rdFilesGrid"></div>
+      </div>
+
+      <button class="btn btn-whatsapp" onclick="shareSelectedOnWhatsApp()">Share Selected via WhatsApp</button>
+
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="editCurrentRecord()">Edit Details</button>
+        <button class="btn btn-danger" onclick="deleteCurrentRecord()">Delete Record</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ADD / EDIT TAB -->
+  <section id="tab-add" style="display:none;">
+    <div class="card">
+      <h2 class="section-title" id="addFormTitle">Add Document</h2>
+      <form id="recordForm">
+        <input type="hidden" id="editingId">
+
+        <label for="fDocType">Document Type</label>
+        <div class="inline-row" style="margin-bottom:12px;">
+          <div class="custom-select-wrap" id="docTypeWrap" style="margin-bottom:0; width:100%;">
+            <div style="position: relative;">
+              <input type="text" id="fDocType" class="select-input" placeholder="Type document type..." autocomplete="off" required oninput="handleDocTypeInput()" onclick="handleDocTypeInput()" onfocus="handleDocTypeInput()">
+              <span class="dropdown-arrow" onclick="toggleDocTypeDropdown(event)">▼</span>
+            </div>
+            <div id="docTypeDropdown" class="dropdown-menu"></div>
+          </div>
+          <button type="button" class="btn btn-outline" style="padding: 11px 14px; white-space: nowrap;" onclick="openAddDocTypeModal()">+ Add / Edit</button>
+        </div>
+
+        <label for="fItemName">Item Name / Specific Name</label>
+        <div class="inline-row">
+          <input type="text" id="fItemName" placeholder="Item Name (e.g., Washing Machine)" required oninput="validateDuplicate()">
+        </div>
+
+        <!-- DUPLICATE ALERT BOX -->
+        <div id="duplicateWarning" class="duplicate-warning">
+          <strong>Record Already Exists!</strong>
+          <p style="margin:4px 0 0;">An item with this Document Type and Item Name is already present in your records.</p>
+          <button type="button" id="btnEditDuplicate" class="btn btn-outline" style="font-size:0.8rem; padding:6px 12px; margin-top:8px;" onclick="loadDuplicateForEditing()">Edit Existing Item Instead</button>
+        </div>
+
+        <label for="fRemarks">Remarks / Description</label>
+        <textarea id="fRemarks" rows="2" placeholder="Enter optional extra details or notes..."></textarea>
+
+        <label for="fFiles">Upload Documents (PDF / JPEG / PNG, max 5 uploads)</label>
+        <input type="file" id="fFiles" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" multiple onchange="handleFileSelect(event)">
+        <div class="file-input-wrap" id="existingFilesWrap" style="display:none;"></div>
+        <div class="hint">Up to 5 files allowed.</div>
+
+        <div class="btn-row">
+          <button type="submit" id="saveSubmitBtn" class="btn btn-primary">Save Document</button>
+          <button type="button" class="btn btn-outline" onclick="resetForm(); switchTab('search');">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- BACKUP / RESTORE TAB -->
+  <section id="tab-backup" style="display:none;">
+    <div class="card">
+      <h2 class="section-title">Backup</h2>
+      <p class="hint">Exports all stored documents as a single JSON file.</p>
+      <button class="btn btn-primary" onclick="exportBackup()">Download Backup (JSON)</button>
+    </div>
+    <div class="card">
+      <h2 class="section-title">Restore</h2>
+      <p class="hint">Restoring will ADD records from the backup file to your local database.</p>
+      <input type="file" id="restoreFile" accept=".json">
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="importBackup()">Restore from File</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2 class="section-title">Storage Info</h2>
+      <p class="hint" id="storageInfo">Loading...</p>
+    </div>
+
+    <div class="card">
+      <h2 class="section-title" style="color:var(--danger);">Reset</h2>
+      <p class="hint">Permanently deletes ALL document records from this browser.</p>
+      <button class="btn btn-danger" style="width:100%;" onclick="resetAllData()">Delete All Data</button>
+    </div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<!-- DOCUMENT TYPE ADD/EDIT POPUP MODAL -->
+<div id="addDocTypeModal">
+  <div class="modal-content">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <h3 style="margin:0; color:var(--brand-dark);">Manage Document Types</h3>
+      <button type="button" class="btn btn-danger btn-sm" onclick="closeAddDocTypeModal()">Close</button>
+    </div>
+    
+    <label style="font-size:.85rem; color:var(--muted); font-weight:600; display:block; margin-bottom:6px;">Add New Document Type</label>
+    <div class="inline-row" style="margin-bottom:12px;">
+      <input type="text" id="modalDocTypeInput" class="select-input" placeholder="Type to filter or add new..." autocomplete="off" oninput="renderDocTypeTable()">
+      <button type="button" class="btn btn-primary" style="padding:10px 14px; white-space:nowrap;" onclick="addNewDocTypeItem()">Add</button>
+    </div>
+
+    <div class="table-container" style="max-height: 250px; overflow-y: auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Type Name</th>
+            <th style="text-align:right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="docTypeTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- PREVIEW MODAL -->
+<div id="previewModal">
+  <div class="modal-header">
+    <span id="previewTitle" class="modal-title"></span>
+    <button onclick="closePreviewModal()" class="modal-close-btn">✕ Close</button>
+  </div>
+
+  <div id="previewContainer"></div>
+
+  <div class="modal-actions">
+    <div style="display:flex; gap:10px; width:100%;">
+      <button id="previewNativeBtn" onclick="openNativeZoom()" class="btn btn-outline" style="flex:1; background:#fff; color:#333; font-size:0.8rem; padding:10px;">External Viewer</button>
+      <button id="previewDownloadBtn" onclick="downloadCurrentFile()" class="btn btn-primary" style="flex:1; font-size:0.8rem; padding:10px;">Download</button>
+    </div>
+    <button id="previewRemoveBtn" onclick="removeCurrentImageFromView()" class="btn btn-danger" style="width:100%; font-size:0.8rem; padding:10px;">Remove File</button>
+  </div>
+</div>
+
+<footer>Powered by A.S.M Consultancy Services</footer>
+
+<script>
+const CONFIG = {
+  dbName: "personalDocHolderDB",
+  dbVersion: 1, 
+  storeName: "documents",
+  maxFiles: 5
+};
+
+let db = null;
+let allRecordsCache = [];
+let currentRecord = null;
+let currentPreviewFile = null;
+let currentPreviewIndex = -1;
+let pendingNewFiles = [];
+let pendingKeptFiles = [];
+let detectedDuplicateRecord = null;
+
+const DEFAULT_DOC_TYPES = ["Warranty", "Bill", "Price list"];
+let customDocTypes = JSON.parse(localStorage.getItem('docHolder_customTypes')) || [];
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+}
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(CONFIG.dbName, CONFIG.dbVersion);
+    req.onupgradeneeded = (e) => {
+      const _db = e.target.result;
+      if (!_db.objectStoreNames.contains(CONFIG.storeName)) {
+        _db.createObjectStore(CONFIG.storeName, { keyPath: "id", autoIncrement: true });
+      }
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = (e) => reject(e.error);
+  });
+}
+
+function txStore(mode) {
+  return db.transaction(CONFIG.storeName, mode).objectStore(CONFIG.storeName);
+}
+
+function dbGetAll() {
+  return new Promise((resolve, reject) => {
+    const req = txStore("readonly").getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = (e) => reject(e.error);
+  });
+}
+
+function dbAdd(record) {
+  return new Promise((resolve, reject) => {
+    const req = txStore("readwrite").add(record);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = (e) => reject(e.error);
+  });
+}
+
+function dbPut(record) {
+  return new Promise((resolve, reject) => {
+    const req = txStore("readwrite").put(record);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = (e) => reject(e.error);
+  });
+}
+
+function dbDelete(id) {
+  return new Promise((resolve, reject) => {
+    const req = txStore("readwrite").delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = (e) => reject(e.error);
+  });
+}
+
+async function init() {
+  try {
+    db = await openDB();
+    await refreshCache();
+    renderAllRecordsList();
+    updateStorageInfo();
+  } catch(err) {
+    console.error("DB Init Error:", err);
+  }
+}
+window.addEventListener("DOMContentLoaded", init);
+
+async function refreshCache() {
+  allRecordsCache = await dbGetAll();
+  allRecordsCache.sort((a, b) => (a.docType || "").localeCompare(b.docType || ""));
+}
+
+function getCombinedDocTypes() {
+  const storedTypes = allRecordsCache.map(r => r.docType).filter(Boolean);
+  return Array.from(new Set([...DEFAULT_DOC_TYPES, ...customDocTypes, ...storedTypes]));
+}
+
+function saveCustomDocTypes() {
+  localStorage.setItem('docHolder_customTypes', JSON.stringify(customDocTypes));
+}
+
+/* TOGGLE ARROW FOR SEARCH/VIEW */
+function toggleSearchDropdown(e) {
+  e.stopPropagation();
+  const dropdown = document.getElementById("searchDropdown");
+  if (dropdown.style.display === "block") {
+    closeDropdowns();
+  } else {
+    document.getElementById("searchBox").focus();
+    handleSearchInput();
+  }
+}
+
+/* SEARCH DROPDOWN WITH ARROW SUPPORT */
+function handleSearchInput() {
+  const searchBox = document.getElementById("searchBox");
+  const searchDropdown = document.getElementById("searchDropdown");
+  const searchWrap = document.getElementById("searchWrap");
+
+  const query = searchBox.value.trim();
+  const lowerQuery = query.toLowerCase();
+
+  const terms = lowerQuery ? lowerQuery.split(/\s+/) : [];
+  const matches = allRecordsCache.filter(r => {
+    if (!lowerQuery) return true;
+    const text = `${r.docType || ''} ${r.itemName || ''} ${r.remarks || ''}`.toLowerCase();
+    return terms.every(term => text.includes(term));
+  });
+
+  let html = matches.map(r => `
+    <div class="dd-item" onclick="selectSearchResult(${r.id})">
+      <div class="dd-info">
+        <span class="dd-name">${escapeHtml(r.docType)} - ${escapeHtml(r.itemName)}</span>
+        <span class="dd-num">${r.files ? r.files.length : 0} file(s)</span>
+      </div>
+    </div>
+  `).join("");
+
+  if (query) {
+    html += `
+      <div class="dd-item dd-action-item" onclick="addNewFromSearch('${escapeJs(query)}')">
+        <div class="dd-info">
+          <span class="dd-name">+ Add "${escapeHtml(query)}"</span>
+          <span class="dd-num">Create new record</span>
+        </div>
+      </div>
+    `;
+  }
+
+  if (html) {
+    searchDropdown.innerHTML = html;
+    searchWrap.classList.add("active");
+    searchDropdown.style.display = "block";
+  } else {
+    closeDropdowns();
+  }
+}
+
+function addNewFromSearch(queryText) {
+  closeDropdowns();
+  resetForm();
+  document.getElementById("fItemName").value = queryText;
+  switchTab("add");
+  validateDuplicate();
+  showToast(`Creating entry for "${queryText}"`);
+}
+
+/* TOGGLE ARROW FOR DOCUMENT TYPE IN ADD/EDIT */
+function toggleDocTypeDropdown(e) {
+  e.stopPropagation();
+  const dropdown = document.getElementById("docTypeDropdown");
+  if (dropdown.style.display === "block") {
+    closeDropdowns();
+  } else {
+    document.getElementById("fDocType").focus();
+    handleDocTypeInput();
+  }
+}
+
+/* DOCUMENT TYPE DROPDOWN WITH ARROW SUPPORT */
+function handleDocTypeInput() {
+  const input = document.getElementById("fDocType");
+  const dropdown = document.getElementById("docTypeDropdown");
+  const wrap = document.getElementById("docTypeWrap");
+  const val = input.value.trim();
+  const lowerVal = val.toLowerCase();
+
+  const allTypes = getCombinedDocTypes();
+  const filtered = lowerVal ? allTypes.filter(t => t.toLowerCase().includes(lowerVal)) : allTypes;
+  const existsExact = allTypes.some(t => t.toLowerCase() === lowerVal);
+
+  let html = filtered.map(t => `
+    <div class="dd-item" onclick="selectDocType('${escapeJs(t)}')">
+      <span class="dd-name">${escapeHtml(t)}</span>
+    </div>
+  `).join("");
+
+  if (val && !existsExact) {
+    html += `
+      <div class="dd-item dd-action-item" onclick="addInlineDocType('${escapeJs(val)}')">
+        <span class="dd-name">+ Add Type "${escapeHtml(val)}"</span>
+        <span class="dd-num">New</span>
+      </div>
+    `;
+  }
+
+  if (html) {
+    dropdown.innerHTML = html;
+    dropdown.style.display = "block";
+    wrap.classList.add("open");
+  } else {
+    dropdown.style.display = "none";
+    wrap.classList.remove("open");
+  }
+
+  validateDuplicate();
+}
+
+function selectDocType(typeVal) {
+  document.getElementById("fDocType").value = typeVal;
+  closeDropdowns();
+  validateDuplicate();
+}
+
+function addInlineDocType(typeVal) {
+  if (!customDocTypes.some(t => t.toLowerCase() === typeVal.toLowerCase())) {
+    customDocTypes.push(typeVal);
+    saveCustomDocTypes();
+  }
+  document.getElementById("fDocType").value = typeVal;
+  closeDropdowns();
+  validateDuplicate();
+  showToast(`Added type "${typeVal}"`);
+}
+
+/* DOCUMENT TYPE MODULE MODAL LOGIC */
+function openAddDocTypeModal() {
+  document.getElementById("modalDocTypeInput").value = '';
+  document.getElementById("addDocTypeModal").style.display = "flex";
+  renderDocTypeTable();
+}
+
+function closeAddDocTypeModal() {
+  document.getElementById("addDocTypeModal").style.display = "none";
+}
+
+function renderDocTypeTable() {
+  const currentList = getCombinedDocTypes();
+  const tbody = document.getElementById('docTypeTableBody');
+  const filterVal = document.getElementById('modalDocTypeInput').value.trim().toLowerCase();
+  
+  tbody.innerHTML = '';
+
+  const filteredList = currentList.filter(item => item.toLowerCase().includes(filterVal));
+
+  if (filteredList.length === 0) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="2" style="text-align: center; color: #94a3b8; padding: 1rem;">No matching types found</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+
+  filteredList.forEach((item) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(item)}</td>
+      <td style="text-align:right;">
+        <button class="btn btn-sm btn-outline" onclick="editDocTypeItem('${escapeJs(item)}')">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteDocTypeItem('${escapeJs(item)}')">Delete</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function addNewDocTypeItem() {
+  const input = document.getElementById('modalDocTypeInput');
+  const value = input.value.trim();
+  const currentList = getCombinedDocTypes();
+
+  if (!value) return;
+
+  const exists = currentList.some(item => item.toLowerCase() === value.toLowerCase());
+  if (exists) {
+    alert(`"${value}" is already present in your document types.`);
+    return;
+  }
+
+  customDocTypes.push(value);
+  saveCustomDocTypes();
+  input.value = '';
+  renderDocTypeTable();
+  showToast(`Added "${value}"`);
+}
+
+async function editDocTypeItem(oldVal) {
+  const updated = prompt("Modify category name:", oldVal);
+  
+  if (updated && updated.trim() !== "") {
+    const newVal = updated.trim();
+    const currentList = getCombinedDocTypes();
+    const exists = currentList.some(item => item.toLowerCase() === newVal.toLowerCase() && item.toLowerCase() !== oldVal.toLowerCase());
+    
+    if (exists) {
+      alert(`"${newVal}" is already present in your list.`);
+      return;
+    }
+
+    const idx = customDocTypes.findIndex(item => item.toLowerCase() === oldVal.toLowerCase());
+    if (idx !== -1) {
+      customDocTypes[idx] = newVal;
+    } else {
+      customDocTypes.push(newVal);
+    }
+    saveCustomDocTypes();
+
+    let updatedCount = 0;
+    for (let record of allRecordsCache) {
+      if (record.docType && record.docType.toLowerCase() === oldVal.toLowerCase()) {
+        record.docType = newVal;
+        await dbPut(record);
+        updatedCount++;
+      }
+    }
+
+    if (document.getElementById("fDocType").value.toLowerCase() === oldVal.toLowerCase()) {
+      document.getElementById("fDocType").value = newVal;
+    }
+
+    await refreshCache();
+    renderDocTypeTable();
+    renderAllRecordsList();
+    showToast(`Updated to "${newVal}" (${updatedCount} records updated)`);
+  }
+}
+
+function deleteDocTypeItem(categoryToDelete) {
+  const isUsed = allRecordsCache.some(entry => entry.docType && entry.docType.toLowerCase() === categoryToDelete.toLowerCase());
+
+  if (isUsed) {
+    alert(`"${categoryToDelete}" is currently linked to saved document records. Clear or edit those records first before deleting this document type.`);
+    return;
+  }
+
+  const idx = customDocTypes.findIndex(item => item.toLowerCase() === categoryToDelete.toLowerCase());
+  if (idx !== -1) {
+    customDocTypes.splice(idx, 1);
+    saveCustomDocTypes();
+  }
+  
+  renderDocTypeTable();
+  showToast(`Deleted type "${categoryToDelete}"`);
+}
+
+function closeDropdowns() {
+  const searchWrap = document.getElementById("searchWrap");
+  const docTypeWrap = document.getElementById("docTypeWrap");
+  
+  if (searchWrap) searchWrap.classList.remove("active");
+  if (docTypeWrap) docTypeWrap.classList.remove("open");
+  
+  document.querySelectorAll(".dropdown-menu").forEach(d => d.style.display = "none");
+}
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#searchWrap") && !e.target.closest("#docTypeWrap")) {
+    closeDropdowns();
+  }
+});
+
+function selectSearchResult(id) {
+  closeDropdowns();
+  openRecordDetail(id);
+}
+
+function renderAllRecordsList() {
+  const wrap = document.getElementById("allRecordsList");
+  if (allRecordsCache.length === 0) {
+    wrap.innerHTML = '<div class="empty-state">No documents added yet. Use "Add / Edit" to create records.</div>';
+    return;
+  }
+  wrap.innerHTML = '<h3 style="font-size:0.9rem; color:var(--muted); margin:10px 0 6px;">All Saved Records</h3>' +
+  allRecordsCache.map(r => `
+    <div class="record-list-item" onclick="openRecordDetail(${r.id})">
+      <div style="flex:1;">
+        <span class="rli-name">${escapeHtml(r.docType)} - ${escapeHtml(r.itemName)}</span>
+        <span class="rli-num" style="display:block;">${r.files ? r.files.length : 0} file(s)</span>
+      </div>
+    </div>
+  `).join("");
+}
+
+function validateDuplicate() {
+  const editingId = document.getElementById("editingId").value;
+  const docTypeVal = document.getElementById("fDocType").value.trim().toLowerCase();
+  const itemNameVal = document.getElementById("fItemName").value.trim().toLowerCase();
+  const warningBox = document.getElementById("duplicateWarning");
+  const saveBtn = document.getElementById("saveSubmitBtn");
+
+  if (!docTypeVal || !itemNameVal) {
+    warningBox.style.display = "none";
+    saveBtn.disabled = false;
+    detectedDuplicateRecord = null;
+    return;
+  }
+
+  const existing = allRecordsCache.find(r => 
+    (r.docType || "").toLowerCase() === docTypeVal && 
+    (r.itemName || "").toLowerCase() === itemNameVal
+  );
+
+  if (existing && (!editingId || parseInt(editingId) !== existing.id)) {
+    warningBox.style.display = "block";
+    saveBtn.disabled = true;
+    detectedDuplicateRecord = existing;
+  } else {
+    warningBox.style.display = "none";
+    saveBtn.disabled = false;
+    detectedDuplicateRecord = null;
+  }
+}
+
+function loadDuplicateForEditing() {
+  if (!detectedDuplicateRecord) return;
+  currentRecord = detectedDuplicateRecord;
+  editCurrentRecord();
+  document.getElementById("duplicateWarning").style.display = "none";
+  document.getElementById("saveSubmitBtn").disabled = false;
+  showToast("Loaded existing item for editing.");
+}
+
+function switchTab(tab) {
+  document.getElementById("tab-search").style.display = tab === "search" ? "" : "none";
+  document.getElementById("tab-add").style.display = tab === "add" ? "" : "none";
+  document.getElementById("tab-backup").style.display = tab === "backup" ? "" : "none";
+  document.getElementById("tabSearchBtn").classList.toggle("active", tab === "search");
+  document.getElementById("tabAddBtn").classList.toggle("active", tab === "add");
+  document.getElementById("tabBackupBtn").classList.toggle("active", tab === "backup");
+  if (tab === "search") {
+    document.getElementById("recordDetailCard").style.display = "none";
+    renderAllRecordsList();
+  }
+  if (tab === "backup") updateStorageInfo();
+}
+
+function openAddTab() {
+  resetForm();
+  switchTab('add');
+}
+
+async function openRecordDetail(id) {
+  const rec = allRecordsCache.find(r => r.id === id);
+  if (!rec) return;
+  currentRecord = rec;
+
+  document.getElementById("recordDetailCard").style.display = "";
+  document.getElementById("rdName").textContent = rec.docType + " - " + rec.itemName;
+  document.getElementById("rdDocTypeVal").textContent = rec.docType;
+  document.getElementById("rdItemNameVal").textContent = rec.itemName;
+  
+  document.getElementById("chkDocType").checked = true;
+  document.getElementById("chkItemName").checked = true;
+
+  const remarksRow = document.getElementById("remarksRow");
+  if (rec.remarks) {
+    remarksRow.style.display = "";
+    document.getElementById("rdRemarksVal").textContent = rec.remarks;
+    document.getElementById("chkRemarks").checked = false;
+  } else {
+    remarksRow.style.display = "none";
+  }
+
+  renderRecordFiles();
+  document.getElementById("recordDetailCard").scrollIntoView({ behavior: "smooth" });
+}
+
+function renderRecordFiles() {
+  if (!currentRecord) return;
+  const grid = document.getElementById("rdFilesGrid");
+  grid.innerHTML = "";
+  (currentRecord.files || []).forEach((f, idx) => {
+    const isImage = f.type && f.type.startsWith("image/");
+    grid.innerHTML += `
+      <div class="file-thumb" onclick="triggerPreview(${idx})" style="cursor:pointer;">
+        ${isImage ? `<img src="${f.data}">` : `<div class="pdf-icon">PDF</div>`}
+        <span class="file-name">${escapeHtml(f.name)}</span>
+        <span style="font-size:.65rem; color:var(--brand); font-weight:bold;">View</span>
+      </div>`;
+  });
+}
+
+function triggerPreview(idx) {
+  if (!currentRecord || !currentRecord.files[idx]) return;
+  const f = currentRecord.files[idx];
+  openPreviewModal(f.name, f.type, f.data, idx);
+}
+
+function openPreviewModal(fileName, fileType, base64Data, idx = -1) {
+  currentPreviewFile = { name: fileName, type: fileType, data: base64Data };
+  currentPreviewIndex = idx;
+
+  const modal = document.getElementById("previewModal");
+  const container = document.getElementById("previewContainer");
+  const titleEl = document.getElementById("previewTitle");
+
+  titleEl.textContent = fileName;
+  container.innerHTML = "";
+
+  const isPdf = (fileType && fileType.includes("pdf")) || (fileName && fileName.toLowerCase().endsWith(".pdf"));
+
+  if (isPdf) {
+    container.innerHTML = `<iframe src="${base64Data}" style="width:100%; height:100%; border:none;"></iframe>`;
+  } else {
+    container.innerHTML = `<img src="${base64Data}" style="max-width:100%; max-height:100%; object-fit:contain;">`;
+  }
+  modal.style.display = "flex";
+}
+
+function closePreviewModal() {
+  document.getElementById("previewModal").style.display = "none";
+  document.getElementById("previewContainer").innerHTML = "";
+}
+
+async function removeCurrentImageFromView() {
+  if (!currentRecord || currentPreviewIndex < 0) return;
+  if (!confirm(`Delete file "${currentRecord.files[currentPreviewIndex].name}"?`)) return;
+
+  currentRecord.files.splice(currentPreviewIndex, 1);
+  await dbPut(currentRecord);
+  await refreshCache();
+  renderRecordFiles();
+  closePreviewModal();
+  showToast("File removed");
+}
+
+function downloadCurrentFile() {
+  if (!currentPreviewFile) return;
+  const a = document.createElement("a");
+  a.href = currentPreviewFile.data;
+  a.download = currentPreviewFile.name;
+  a.click();
+}
+
+function openNativeZoom() {
+  if (!currentPreviewFile) return;
+  const w = window.open();
+  w.document.write(`<iframe src="${currentPreviewFile.data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+}
+
+async function shareSelectedOnWhatsApp() {
+  if (!currentRecord) return;
+  const lines = [];
+  if (document.getElementById("chkDocType").checked) lines.push("Document Type: " + currentRecord.docType);
+  if (document.getElementById("chkItemName").checked) lines.push("Item Name: " + currentRecord.itemName);
+  if (currentRecord.remarks && document.getElementById("chkRemarks").checked) lines.push("Remarks: " + currentRecord.remarks);
+
+  const text = lines.join("\n");
+  window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
+}
+
+async function handleFileSelect(e) {
+  const files = Array.from(e.target.files);
+  if (pendingKeptFiles.length + pendingNewFiles.length + files.length > CONFIG.maxFiles) {
+    showToast("Max " + CONFIG.maxFiles + " files allowed");
+    return;
+  }
+  for (const f of files) {
+    const base64 = await fileToBase64(f);
+    pendingNewFiles.push({ name: f.name, type: f.type || 'application/pdf', data: base64 });
+  }
+  renderExistingFilesPreview();
+}
+
+function renderExistingFilesPreview() {
+  const wrap = document.getElementById("existingFilesWrap");
+  const all = [...pendingKeptFiles.map((f, i) => ({ ...f, _kind: "kept", _idx: i })),
+               ...pendingNewFiles.map((f, i) => ({ ...f, _kind: "new", _idx: i }))];
+  if (all.length === 0) { wrap.style.display = "none"; return; }
+  wrap.style.display = "block";
+  wrap.innerHTML = '<div class="files-grid">' + all.map(f => `
+    <div class="file-thumb">
+      <button type="button" onclick="removePendingFile('${f._kind}', ${f._idx})" style="position:absolute;top:2px;right:2px;border:none;background:var(--danger);color:#fff;border-radius:50%;width:18px;height:18px;font-size:.7rem;cursor:pointer;">✕</button>
+      ${f.type && f.type.startsWith("image/") ? `<img src="${f.data}">` : `<div class="pdf-icon">PDF</div>`}
+      <span class="file-name">${escapeHtml(f.name)}</span>
+    </div>
+  `).join("") + "</div>";
+}
+
+function removePendingFile(kind, idx) {
+  if (kind === "kept") pendingKeptFiles.splice(idx, 1);
+  else pendingNewFiles.splice(idx, 1);
+  renderExistingFilesPreview();
+}
+
+function editCurrentRecord() {
+  if (!currentRecord) return;
+  document.getElementById("addFormTitle").textContent = "Edit Document";
+  document.getElementById("saveSubmitBtn").textContent = "Update Document";
+  document.getElementById("editingId").value = currentRecord.id;
+  
+  document.getElementById("fDocType").value = currentRecord.docType;
+  document.getElementById("fItemName").value = currentRecord.itemName;
+  document.getElementById("fRemarks").value = currentRecord.remarks || "";
+  
+  pendingKeptFiles = (currentRecord.files || []).map(f => ({ ...f }));
+  pendingNewFiles = [];
+  renderExistingFilesPreview();
+  switchTab("add");
+}
+
+function resetForm() {
+  document.getElementById("recordForm").reset();
+  document.getElementById("editingId").value = "";
+  document.getElementById("addFormTitle").textContent = "Add Document";
+  document.getElementById("saveSubmitBtn").textContent = "Save Document";
+  document.getElementById("duplicateWarning").style.display = "none";
+  document.getElementById("saveSubmitBtn").disabled = false;
+  pendingKeptFiles = [];
+  pendingNewFiles = [];
+  renderExistingFilesPreview();
+}
+
+document.getElementById("recordForm").addEventListener("submit", async function(e) {
+  e.preventDefault();
+  
+  const id = document.getElementById("editingId").value;
+  const docType = document.getElementById("fDocType").value.trim();
+  const itemName = document.getElementById("fItemName").value.trim();
+  const remarks = document.getElementById("fRemarks").value.trim();
+
+  const files = [...pendingKeptFiles, ...pendingNewFiles].map(f => ({ name: f.name, type: f.type, data: f.data }));
+
+  const record = { 
+    docType, 
+    itemName, 
+    remarks: remarks || null, 
+    files, 
+    updatedAt: Date.now() 
+  };
+
+  if (id) {
+    record.id = parseInt(id);
+    record.createdAt = currentRecord ? currentRecord.createdAt : Date.now();
+    await dbPut(record);
+    showToast("Document updated successfully!");
+  } else {
+    record.createdAt = Date.now();
+    await dbAdd(record);
+    showToast("Document saved successfully!");
+  }
+
+  await refreshCache();
+  resetForm();
+  switchTab("search");
+});
+
+async function deleteCurrentRecord() {
+  if (!currentRecord) return;
+  if (!confirm(`Delete "${currentRecord.docType} - ${currentRecord.itemName}"?`)) return;
+  await dbDelete(currentRecord.id);
+  await refreshCache();
+  document.getElementById("recordDetailCard").style.display = "none";
+  renderAllRecordsList();
+  showToast("Record deleted");
+}
+
+async function exportBackup() {
+  const records = await dbGetAll();
+  const blob = new Blob([JSON.stringify({ records }, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "backup_" + new Date().toISOString().slice(0,10) + ".json";
+  a.click();
+}
+
+function importBackup() {
+  const fileInput = document.getElementById("restoreFile");
+  if (!fileInput.files.length) return;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const payload = JSON.parse(e.target.result);
+    if (payload.records) {
+      for (const r of payload.records) await dbAdd(r);
+      await refreshCache();
+      renderAllRecordsList();
+      showToast("Backup restored!");
+    }
+  };
+  reader.readAsText(fileInput.files[0]);
+}
+
+async function resetAllData() {
+  if (!confirm("Permanently delete ALL records?")) return;
+  const store = txStore("readwrite");
+  store.clear();
+  await refreshCache();
+  renderAllRecordsList();
+  showToast("Database cleared");
+}
+
+async function updateStorageInfo() {
+  const info = document.getElementById("storageInfo");
+  if (info) info.textContent = allRecordsCache.length + " record(s) stored in browser.";
+}
+
+function escapeHtml(str) {
+  return String(str || "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function escapeJs(str) {
+  return String(str || "").replace(/'/g, "\\'").replace(/"/g, '\\"');
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2500);
+}
+</script>
+</body>
+</html>
