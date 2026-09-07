@@ -502,6 +502,18 @@
 </footer>
 
 <script>
+// Request persistent storage so the browser doesn't 
+// auto-clear data when device storage runs low
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persist().then(function(granted) {
+    if (granted) {
+      console.log("Storage is now persistent — protected from auto-clear.");
+    } else {
+      console.log("Persistent storage not granted by browser.");
+    }
+  });
+}
+
 const CONFIG = {
   dbName: "personalDocHolderDB",
   dbVersion: 1, 
