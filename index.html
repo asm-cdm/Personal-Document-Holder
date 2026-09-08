@@ -485,6 +485,40 @@
   </div>
 </div>
 
+<!-- DOCUMENT TYPE EDIT POPUP MODAL -->
+<div id="editDocTypeModal" class="modal">
+  <div class="modal-content" style="max-width: 420px;">
+    <h3 style="margin:0 0 12px; color:var(--brand-dark);">Edit Document Type</h3>
+    <label for="editDocTypeInput" style="font-size:.85rem; color:var(--muted); font-weight:600;">Type Name</label>
+    <input type="text" id="editDocTypeInput" class="select-input" style="margin-top:6px;" autocomplete="off">
+    <div class="btn-row">
+      <button type="button" class="btn btn-primary" onclick="confirmEditDocType()">Update</button>
+      <button type="button" class="btn btn-outline" onclick="closeEditDocTypeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- DOCUMENT TYPE DELETE POPUP MODAL -->
+<div id="deleteDocTypeModal" class="modal">
+  <div class="modal-content" style="max-width: 420px;">
+    <h3 id="deleteDocTypeTitle" style="margin:0 0 12px; color:var(--brand-dark);">Delete Document Type</h3>
+    <p id="deleteDocTypeMessage" style="font-size:.9rem; color:var(--text); margin:0;"></p>
+    <div class="btn-row" id="deleteDocTypeActions"></div>
+  </div>
+</div>
+
+<!-- GENERIC APP CONFIRM MODAL (used by Backup/Restore Reset) -->
+<div id="appConfirmModal" class="modal">
+  <div class="modal-content" style="max-width: 420px;">
+    <h3 id="confirmModalTitle" style="margin:0 0 12px; color:var(--brand-dark);">Confirm</h3>
+    <p id="confirmModalMessage" style="font-size:.9rem; color:var(--text); margin:0;"></p>
+    <div class="btn-row">
+      <button type="button" class="btn btn-danger" style="flex:1;" onclick="runConfirmAction()">Confirm</button>
+      <button type="button" class="btn btn-outline" style="flex:1;" onclick="closeConfirmModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- FILE VIEW MODAL -->
 <div id="fileViewerModal" class="modal">
   <div class="modal-content" style="max-width: 650px;">
@@ -530,6 +564,11 @@ let detectedDuplicateRecord = null;
 
 const DEFAULT_DOC_TYPES = ["Warranty", "Bill", "Price list"];
 let customDocTypes = JSON.parse(localStorage.getItem('docHolder_customTypes')) || [];
+let removedDefaultTypes = JSON.parse(localStorage.getItem('docHolder_removedDefaults')) || [];
+
+function saveRemovedDefaults() {
+  localStorage.setItem('docHolder_removedDefaults', JSON.stringify(removedDefaultTypes));
+}
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -620,7 +659,8 @@ async function refreshCache() {
 
 function getCombinedDocTypes() {
   const storedTypes = allRecordsCache.map(r => r.docType).filter(Boolean);
-  return Array.from(new Set([...DEFAULT_DOC_TYPES, ...customDocTypes, ...storedTypes]));
+  const activeDefaults = DEFAULT_DOC_TYPES.filter(t => !removedDefaultTypes.some(r => r.toLowerCase() === t.toLowerCase()));
+  return Array.from(new Set([...activeDefaults, ...customDocTypes, ...storedTypes]));
 }
 
 function saveCustomDocTypes() {
@@ -788,8 +828,8 @@ function renderDocTypeTable() {
     tr.innerHTML = `
       <td>${escapeHtml(item)}</td>
       <td style="text-align:right;">
-        <button class="btn btn-sm btn-outline" onclick="editDocTypeItem('${escapeJs(item)}')">Edit</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteDocTypeItem('${escapeJs(item)}')">Delete</button>
+        <button class="btn btn-sm btn-outline" onclick="openEditDocTypeModal('${escapeJs(item)}')">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="openDeleteDocTypeModal('${escapeJs(item)}')">Delete</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -816,61 +856,108 @@ function addNewDocTypeItem() {
   showToast(`Added "${value}"`);
 }
 
-async function editDocTypeItem(oldVal) {
-  const updated = prompt("Modify category name:", oldVal);
-  
-  if (updated && updated.trim() !== "") {
-    const newVal = updated.trim();
-    const currentList = getCombinedDocTypes();
-    const exists = currentList.some(item => item.toLowerCase() === newVal.toLowerCase() && item.toLowerCase() !== oldVal.toLowerCase());
-    
-    if (exists) {
-      alert(`"${newVal}" is already present in your list.`);
-      return;
-    }
+let editingDocTypeOldVal = null;
 
-    const idx = customDocTypes.findIndex(item => item.toLowerCase() === oldVal.toLowerCase());
-    if (idx !== -1) {
-      customDocTypes[idx] = newVal;
-    } else {
-      customDocTypes.push(newVal);
-    }
-    saveCustomDocTypes();
-
-    let updatedCount = 0;
-    for (let record of allRecordsCache) {
-      if (record.docType && record.docType.toLowerCase() === oldVal.toLowerCase()) {
-        record.docType = newVal;
-        await dbPut(record);
-        updatedCount++;
-      }
-    }
-
-    if (document.getElementById("fDocType").value.toLowerCase() === oldVal.toLowerCase()) {
-      document.getElementById("fDocType").value = newVal;
-    }
-
-    await refreshCache();
-    renderDocTypeTable();
-    renderAllRecordsList();
-    showToast(`Updated to "${newVal}" (${updatedCount} records updated)`);
-  }
+function openEditDocTypeModal(oldVal) {
+  editingDocTypeOldVal = oldVal;
+  document.getElementById("editDocTypeInput").value = oldVal;
+  document.getElementById("editDocTypeModal").style.display = "flex";
 }
 
-function deleteDocTypeItem(categoryToDelete) {
-  const isUsed = allRecordsCache.some(entry => entry.docType && entry.docType.toLowerCase() === categoryToDelete.toLowerCase());
+function closeEditDocTypeModal() {
+  document.getElementById("editDocTypeModal").style.display = "none";
+  editingDocTypeOldVal = null;
+}
 
-  if (isUsed) {
-    alert(`"${categoryToDelete}" is currently linked to saved document records. Clear or edit those records first before deleting this document type.`);
+async function confirmEditDocType() {
+  const oldVal = editingDocTypeOldVal;
+  const newVal = document.getElementById("editDocTypeInput").value.trim();
+  if (!oldVal || !newVal) return;
+  if (oldVal.toLowerCase() === newVal.toLowerCase()) {
+    closeEditDocTypeModal();
     return;
   }
 
+  const currentList = getCombinedDocTypes();
+  const exists = currentList.some(item => item.toLowerCase() === newVal.toLowerCase() && item.toLowerCase() !== oldVal.toLowerCase());
+
+  if (exists) {
+    alert(`"${newVal}" is already present in your list.`);
+    return;
+  }
+
+  const isDefault = DEFAULT_DOC_TYPES.some(t => t.toLowerCase() === oldVal.toLowerCase());
+  const idx = customDocTypes.findIndex(item => item.toLowerCase() === oldVal.toLowerCase());
+  if (idx !== -1) {
+    customDocTypes[idx] = newVal;
+  } else {
+    customDocTypes.push(newVal);
+  }
+  saveCustomDocTypes();
+
+  if (isDefault && !removedDefaultTypes.some(r => r.toLowerCase() === oldVal.toLowerCase())) {
+    removedDefaultTypes.push(oldVal);
+    saveRemovedDefaults();
+  }
+
+  let updatedCount = 0;
+  for (let record of allRecordsCache) {
+    if (record.docType && record.docType.toLowerCase() === oldVal.toLowerCase()) {
+      record.docType = newVal;
+      await dbPut(record);
+      updatedCount++;
+    }
+  }
+
+  if (document.getElementById("fDocType").value.toLowerCase() === oldVal.toLowerCase()) {
+    document.getElementById("fDocType").value = newVal;
+  }
+
+  await refreshCache();
+  renderDocTypeTable();
+  renderAllRecordsList();
+  closeEditDocTypeModal();
+  showToast(`Updated to "${newVal}" (${updatedCount} records updated)`);
+}
+
+function openDeleteDocTypeModal(categoryToDelete) {
+  const isUsed = allRecordsCache.some(entry => entry.docType && entry.docType.toLowerCase() === categoryToDelete.toLowerCase());
+  const title = document.getElementById("deleteDocTypeTitle");
+  const msg = document.getElementById("deleteDocTypeMessage");
+  const actions = document.getElementById("deleteDocTypeActions");
+
+  if (isUsed) {
+    title.textContent = "Cannot Delete";
+    msg.textContent = `"${categoryToDelete}" is currently linked to saved document records. Clear or edit those records first before deleting this document type.`;
+    actions.innerHTML = `<button type="button" class="btn btn-outline" style="flex:1;" onclick="closeDeleteDocTypeModal()">OK</button>`;
+  } else {
+    title.textContent = "Delete Document Type";
+    msg.textContent = `Delete "${categoryToDelete}"? This cannot be undone.`;
+    actions.innerHTML = `
+      <button type="button" class="btn btn-danger" style="flex:1;" onclick="performDeleteDocType('${escapeJs(categoryToDelete)}')">Confirm</button>
+      <button type="button" class="btn btn-outline" style="flex:1;" onclick="closeDeleteDocTypeModal()">Cancel</button>`;
+  }
+
+  document.getElementById("deleteDocTypeModal").style.display = "flex";
+}
+
+function closeDeleteDocTypeModal() {
+  document.getElementById("deleteDocTypeModal").style.display = "none";
+}
+
+function performDeleteDocType(categoryToDelete) {
+  const isDefault = DEFAULT_DOC_TYPES.some(t => t.toLowerCase() === categoryToDelete.toLowerCase());
   const idx = customDocTypes.findIndex(item => item.toLowerCase() === categoryToDelete.toLowerCase());
   if (idx !== -1) {
     customDocTypes.splice(idx, 1);
     saveCustomDocTypes();
   }
-  
+  if (isDefault && !removedDefaultTypes.some(r => r.toLowerCase() === categoryToDelete.toLowerCase())) {
+    removedDefaultTypes.push(categoryToDelete);
+    saveRemovedDefaults();
+  }
+
+  closeDeleteDocTypeModal();
   renderDocTypeTable();
   showToast(`Deleted type "${categoryToDelete}"`);
 }
@@ -1293,13 +1380,38 @@ function importBackup() {
   reader.readAsText(fileInput.files[0]);
 }
 
-async function resetAllData() {
-  if (!confirm("Permanently delete ALL records?")) return;
-  const store = txStore("readwrite");
-  store.clear();
-  await refreshCache();
-  renderAllRecordsList();
-  showToast("Database cleared");
+let pendingConfirmAction = null;
+
+function openConfirmModal(title, message, onConfirm) {
+  document.getElementById("confirmModalTitle").textContent = title;
+  document.getElementById("confirmModalMessage").textContent = message;
+  pendingConfirmAction = onConfirm;
+  document.getElementById("appConfirmModal").style.display = "flex";
+}
+
+function closeConfirmModal() {
+  document.getElementById("appConfirmModal").style.display = "none";
+  pendingConfirmAction = null;
+}
+
+function runConfirmAction() {
+  const action = pendingConfirmAction;
+  closeConfirmModal();
+  if (action) action();
+}
+
+function resetAllData() {
+  openConfirmModal(
+    "Delete All Data",
+    "Permanently delete ALL records? This cannot be undone.",
+    async () => {
+      const store = txStore("readwrite");
+      store.clear();
+      await refreshCache();
+      renderAllRecordsList();
+      showToast("Database cleared");
+    }
+  );
 }
 
 async function updateStorageInfo() {
