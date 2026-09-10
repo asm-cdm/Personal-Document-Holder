@@ -522,6 +522,17 @@
   </div>
 </div>
 
+<!-- INFO MODAL (used by Backup/Restore success messages) -->
+<div id="appInfoModal" class="modal">
+  <div class="modal-content" style="max-width: 420px;">
+    <h3 id="infoModalTitle" style="margin:0 0 12px; color:var(--brand-dark);">Info</h3>
+    <p id="infoModalMessage" style="font-size:.9rem; color:var(--text); margin:0;"></p>
+    <div class="btn-row">
+      <button type="button" class="btn btn-primary" style="flex:1;" onclick="closeInfoModal()">OK</button>
+    </div>
+  </div>
+</div>
+
 <!-- FILE VIEW MODAL -->
 <div id="fileViewerModal" class="modal">
   <div class="modal-content" style="max-width: 650px;">
@@ -1357,8 +1368,13 @@ async function exportBackup() {
   const blob = new Blob([JSON.stringify({ records }, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL ? URL.createObjectURL(blob) : "";
-  a.download = "backup_" + new Date().toISOString().slice(0,10) + ".json";
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, "0");
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const yy = String(now.getFullYear()).slice(-2);
+  a.download = "DocHolder_" + dd + mm + yy + ".json";
   a.click();
+  openInfoModal("Backup", "Backup saved successfully.");
 }
 
 function importBackup() {
@@ -1371,10 +1387,21 @@ function importBackup() {
       for (const r of payload.records) await dbAdd(r);
       await refreshCache();
       renderAllRecordsList();
-      showToast("Backup restored!");
+      openInfoModal("Restore", "Data restored successfully.");
+      fileInput.value = "";
     }
   };
   reader.readAsText(fileInput.files[0]);
+}
+
+function openInfoModal(title, message) {
+  document.getElementById("infoModalTitle").textContent = title;
+  document.getElementById("infoModalMessage").textContent = message;
+  document.getElementById("appInfoModal").style.display = "flex";
+}
+
+function closeInfoModal() {
+  document.getElementById("appInfoModal").style.display = "none";
 }
 
 let pendingConfirmAction = null;
