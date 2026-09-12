@@ -1159,7 +1159,10 @@ function openFileViewer(index) {
     innerHtml = `<img id="viewerZoomInner" src="${file.data}" style="max-width:100%; max-height:70vh; object-fit:contain; transform-origin: center center; transition: transform 0.15s ease;">`;
     zoomable = true;
   } else if (file.type && file.type.includes("pdf")) {
-    innerHtml = `<iframe src="${file.data}" style="width:100%; height:70vh; border:none;"></iframe>`;
+    innerHtml = `<div id="pdfOpenBox" style="padding:30px 20px; text-align:center;">
+        <p style="margin:0 0 16px; color:var(--muted); font-size:0.9rem;">Tap below to open this PDF in your phone's own viewer.</p>
+        <button type="button" class="btn btn-primary" onclick="openPdfInNewTab(${index})">Open PDF</button>
+      </div>`;
     zoomable = false;
   } else {
     innerHtml = `<p style="padding:20px;">Preview unavailable for this format.</p>`;
@@ -1177,6 +1180,48 @@ function closeFileViewer() {
   document.getElementById("fileViewerModal").style.display = "none";
   document.getElementById("viewerContent").innerHTML = "";
   resetViewerZoomState();
+}
+
+/* ---- PDF "Open in new tab" module (isolated) ----
+   Large PDFs as raw base64 text can exceed mobile browsers' data-URL
+   size limits. Converting to a Blob removes that limit, and opening it
+   via a real, user-clicked <a> in a new tab (not window.open, not an
+   iframe) is the most broadly compatible way to view it on mobile. */
+function openPdfInNewTab(index) {
+  if (!currentRecord || !currentRecord.files[index]) return;
+  const file = currentRecord.files[index];
+  try {
+    const [header, base64] = file.data.split(",");
+    const mimeMatch = header.match(/data:(.*?);base64/);
+    const mime = mimeMatch ? mimeMatch[1] : "application/pdf";
+    const byteChars = atob(base64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) {
+      byteNumbers[i] = byteChars.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: mime });
+    const blobUrl = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.target = "_blank";
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+  } catch (err) {
+    // Fallback: try the raw data URL directly if Blob conversion fails
+    const link = document.createElement("a");
+    link.href = file.data;
+    link.target = "_blank";
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 }
 
 /* ---- File Viewer Zoom module (isolated) ---- */
