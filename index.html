@@ -414,7 +414,7 @@
         <textarea id="fRemarks" rows="2" placeholder="Enter optional extra details or notes..."></textarea>
 
         <label for="fFiles">Upload Documents (PDF / JPEG / PNG, max 5 uploads)</label>
-        <input type="file" id="fFiles" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" multiple onchange="handleFileSelect(event)">
+        <input type="file" id="fFiles" accept=".jpg,.jpeg,.png,.pdf,.txt,image/jpeg,image/png,application/pdf,text/plain" multiple onchange="handleFileSelect(event)">
         
         <div class="file-input-wrap" id="existingFilesWrap" style="display:none;">
           <div class="file-grid-container" id="existingFilesGrid"></div>
@@ -1168,6 +1168,12 @@ function openFileViewer(index) {
         <button type="button" class="btn btn-primary" onclick="openPdfInNewTab(${index})">Open PDF</button>
       </div>`;
     zoomable = false;
+  } else if (file.type && file.type.includes("text")) {
+    innerHtml = `<div id="textOpenBox" style="padding:30px 20px; text-align:center;">
+        <p style="margin:0 0 16px; color:var(--muted); font-size:0.9rem;">Tap below to open this text file in your phone's own viewer.</p>
+        <button type="button" class="btn btn-primary" onclick="openTextInNewTab(${index})">Open Text File</button>
+      </div>`;
+    zoomable = false;
   } else {
     innerHtml = `<p style="padding:20px;">Preview unavailable for this format.</p>`;
   }
@@ -1218,6 +1224,43 @@ function openPdfInNewTab(index) {
     setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
   } catch (err) {
     // Fallback: try the raw data URL directly if Blob conversion fails
+    const link = document.createElement("a");
+    link.href = file.data;
+    link.target = "_blank";
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
+/* ---- Text file "Open in new tab" module (isolated) ---- */
+function openTextInNewTab(index) {
+  if (!currentRecord || !currentRecord.files[index]) return;
+  const file = currentRecord.files[index];
+  try {
+    const [header, base64] = file.data.split(",");
+    const mimeMatch = header.match(/data:(.*?);base64/);
+    const mime = mimeMatch ? mimeMatch[1] : "text/plain";
+    const byteChars = atob(base64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) {
+      byteNumbers[i] = byteChars.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: mime });
+    const blobUrl = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.target = "_blank";
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+  } catch (err) {
     const link = document.createElement("a");
     link.href = file.data;
     link.target = "_blank";
