@@ -1116,6 +1116,7 @@ function renderRecordFiles() {
   currentRecord.files.forEach((f, idx) => {
     const isImage = f.type && f.type.startsWith("image/");
     const isPdf = f.type && f.type.includes("pdf");
+    const isText = f.type && f.type.includes("text");
 
     let previewHtml = '';
     if (isImage) {
@@ -1129,6 +1130,14 @@ function renderRecordFiles() {
           <div class="pdf-badge-box">
             <span style="font-size:1.5rem;">📄</span>
             <span>View PDF</span>
+          </div>
+        </div>`;
+    } else if (isText) {
+      previewHtml = `
+        <div class="file-preview-box" onclick="openFileViewer(${idx})">
+          <div class="pdf-badge-box">
+            <span style="font-size:1.5rem;">📝</span>
+            <span>View Text</span>
           </div>
         </div>`;
     }
@@ -1232,6 +1241,20 @@ function openPdfInNewTab(index) {
     link.click();
     document.body.removeChild(link);
   }
+}
+
+/* ---- MIME fallback helper (isolated) ----
+   Some mobile browsers/file pickers leave File.type blank, especially
+   for .txt. This guesses from the filename extension instead of
+   assuming any one format, so each type still routes to its own
+   viewer branch correctly. */
+function guessMimeFromName(name) {
+  const ext = (name || "").split(".").pop().toLowerCase();
+  if (ext === "txt") return "text/plain";
+  if (ext === "pdf") return "application/pdf";
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "png") return "image/png";
+  return "application/pdf";
 }
 
 /* ---- Text file "Open in new tab" module (isolated) ---- */
@@ -1462,7 +1485,7 @@ async function handleFileSelect(e) {
   }
   for (const f of files) {
     const base64 = await fileToBase64(f);
-    pendingNewFiles.push({ name: f.name, type: f.type || 'application/pdf', data: base64 });
+    pendingNewFiles.push({ name: f.name, type: f.type || guessMimeFromName(f.name), data: base64 });
   }
   renderExistingFilesPreview();
 }
@@ -1484,6 +1507,7 @@ function renderExistingFilesPreview() {
   grid.innerHTML = all.map(f => {
     const isImage = f.type && f.type.startsWith("image/");
     const isPdf = f.type && f.type.includes("pdf");
+    const isText = f.type && f.type.includes("text");
 
     let previewHtml = '';
     if (isImage) {
@@ -1497,6 +1521,14 @@ function renderExistingFilesPreview() {
           <div class="pdf-badge-box">
             <span style="font-size:1.5rem;">📄</span>
             <span>PDF File</span>
+          </div>
+        </div>`;
+    } else if (isText) {
+      previewHtml = `
+        <div class="file-preview-box">
+          <div class="pdf-badge-box">
+            <span style="font-size:1.5rem;">📝</span>
+            <span>Text File</span>
           </div>
         </div>`;
     }
