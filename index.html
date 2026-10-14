@@ -7,7 +7,9 @@
 <link rel="icon" type="image/png" href="https://asm-cdm.github.io/Personal-Document-Holder/asm-favicon.png">
 <link rel="apple-touch-icon" href="https://asm-cdm.github.io/Personal-Document-Holder/asm-favicon.png">
 <link rel="manifest" href="https://asm-cdm.github.io/Personal-Document-Holder/manifest.json">
-  <style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<style>
   :root{
     --brand:#2e5b8a;
     --brand-dark:#1f3c5e;
@@ -319,6 +321,7 @@
 <body>
 
 <header>
+  <button type="button" onclick="helpOpen()" style="position:absolute;right:10px;bottom:8px;background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.45);border-radius:999px;padding:3px 11px;font-size:.75rem;font-weight:600;cursor:pointer;">❓ Help</button>
   <div class="app-title-text">Personal Document Holder</div>
   <div class="subtitle">PDF &amp; File Management Register</div>
 </header>
@@ -330,6 +333,8 @@
 </nav>
 
 <main>
+
+  <div id="driveBanner" style="display:none;"></div>
 
   <!-- SEARCH / VIEW TAB -->
   <section id="tab-search">
@@ -443,6 +448,33 @@
         <button class="btn btn-primary" onclick="importBackup()">Restore from File</button>
       </div>
     </div>
+    <div class="card" id="driveBox">
+      <h2 class="section-title">Google Drive Backup</h2>
+      <div id="driveQuietRow" style="display:none;">
+        <p class="hint" style="margin-top:0;">Optional: save a backup copy of your documents to your own Google Drive. Open this app in Chrome (not inside WhatsApp) to sign in.</p>
+        <div class="btn-row"><button type="button" class="btn btn-primary" onclick="driveGoogleSignIn()">Sign in with Google</button></div>
+        <p class="hint"><a href="https://asm-cdm.github.io/asm-privacy/" target="_blank" rel="noopener">Privacy policy</a></p>
+      </div>
+      <div id="driveMain" style="display:none;">
+        <p id="driveStatusLine" class="hint" style="margin-top:0;font-weight:600;"></p>
+        <p id="driveLastLine" class="hint"></p>
+        <p id="driveAutoLine" class="hint"></p>
+        <div class="btn-row">
+          <button type="button" id="driveBackupBtn" class="btn btn-primary" onclick="driveBackupNow()">Backup to Google Drive</button>
+          <button type="button" id="driveRestoreBtn" class="btn btn-outline" onclick="driveLoadList()">Restore from Google Drive</button>
+        </div>
+        <div id="driveList" style="margin-top:12px;"></div>
+        <details style="margin-top:14px;">
+          <summary style="cursor:pointer;font-size:.85rem;font-weight:600;color:var(--brand-dark);">Drive Settings</summary>
+          <p class="hint">Signed in with Google. Backups go to the folder "ASM Backups" in your own Google Drive. Google asks for a quick confirmation about once an hour.</p>
+          <div class="btn-row">
+            <button type="button" id="driveTestBtn" class="btn btn-outline" onclick="driveTestConnection()">Test Connection</button>
+            <button type="button" class="btn btn-danger" onclick="driveGoogleDisconnect()">Disconnect</button>
+          </div>
+        </details>
+      </div>
+    </div>
+
     <div class="card">
       <h2 class="section-title">Storage Info</h2>
       <p class="hint" id="storageInfo">Loading...</p>
@@ -529,6 +561,29 @@
     <div class="btn-row">
       <button type="button" class="btn btn-primary" style="flex:1;" onclick="closeInfoModal()">OK</button>
     </div>
+  </div>
+</div>
+
+<!-- FIRST-RUN SCREEN (only when this device has no documents) -->
+<div id="firstRunModal" class="modal">
+  <div class="modal-content" style="max-width: 420px;">
+    <h3 style="margin:0 0 12px; color:var(--brand-dark);">No data found on this device</h3>
+    <p style="font-size:.9rem; color:var(--text); margin:0;">If you used Personal Document Holder before, on this phone or another one, restore your documents now. If you are new, start fresh.</p>
+    <div style="display:flex; flex-direction:column; gap:8px; margin-top:14px;">
+      <button type="button" class="btn btn-primary" onclick="firstRunRestoreDrive()">Restore from Google Drive</button>
+      <button type="button" class="btn btn-outline" onclick="firstRunRestoreFile()">Restore from a backup file</button>
+      <button type="button" class="btn btn-outline" onclick="firstRunStartFresh()">Start fresh</button>
+    </div>
+  </div>
+</div>
+
+<!-- HELP PANEL -->
+<div id="helpModal" class="modal" onclick="if(event.target===this) helpClose()">
+  <div class="modal-content" style="max-width: 420px; position: relative;">
+    <button type="button" aria-label="Close" onclick="helpClose()" style="position:absolute; top:10px; right:14px; background:none; border:none; font-size:1.4rem; line-height:1; color:var(--muted); cursor:pointer;">✕</button>
+    <h3 id="helpTitle" style="margin:0 0 12px; color:var(--brand-dark); padding-right:28px;">Help</h3>
+    <div id="helpBody"></div>
+    <button type="button" id="helpBackBtn" class="btn btn-outline" style="display:none; width:100%; margin-top:14px;" onclick="helpShowList()">← Back</button>
   </div>
 </div>
 
@@ -659,6 +714,7 @@ async function init() {
     await refreshCache();
     renderAllRecordsList();
     updateStorageInfo();
+    firstRunCheck();
   } catch(err) {
     console.error("DB Init Error:", err);
   }
@@ -1708,6 +1764,391 @@ function escapeHtml(str) {
 function escapeJs(str) {
   return String(str || "").replace(/'/g, "\\'").replace(/"/g, '\\"');
 }
+
+/* ===================== GOOGLE DRIVE BACKUP MODULE (isolated - every function is separate) =====================
+   File in Drive: document-holder-<year>.json  (year of the backup date, overwritten on each backup)
+   Google sign-in only. No automatic backup - a daily reminder message only.
+   Uses the app's own info popup (openInfoModal) for messages. */
+const DRIVE_APP_NAME='document-holder';
+const DRIVE_AUTO_HOUR=20; // reminder time: 8 PM
+const DRIVE_STORE={ last:'asm_pdh_drive_lastSuccess', auto:'asm_pdh_drive_autoOn', gflag:'asm_pdh_drive_google' };
+const DRIVE_GOOGLE_CLIENT_ID='978793704970-e1isrkd8too2qlistrtpqdgn8oj2h98j.apps.googleusercontent.com';
+const DRIVE_GOOGLE_SCOPE='https://www.googleapis.com/auth/drive.file';
+const DRIVE_GOOGLE_FOLDER='ASM Backups';
+let driveBusy=false, driveGToken=null, driveGExpiry=0, driveGClient=null, driveGWaiter=null, driveGFolderId=null;
+
+/* ---- message popup (the app's own centered info popup) ---- */
+function driveShowMessage(title,msg,icon){ openInfoModal((icon||'ℹ️')+' '+title,msg); }
+
+/* ---- small storage helpers ---- */
+function driveRead(k){ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } }
+function driveWrite(k,v){ try{ localStorage.setItem(k,v); return true; }catch(e){ return false; } }
+function driveIsConnected(){ return driveRead(DRIVE_STORE.gflag)==='1'; }
+function driveLastSuccess(){ return parseInt(driveRead(DRIVE_STORE.last),10)||0; }
+function driveAutoEnabled(){ return driveRead(DRIVE_STORE.auto)==='1'; }
+function driveFormatTime(ms){
+  const d=new Date(ms), p=n=>String(n).padStart(2,'0');
+  let h=d.getHours(); const ap=h>=12?'PM':'AM'; h=h%12||12;
+  return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${h}:${p(d.getMinutes())} ${ap}`;
+}
+
+/* ---- Google sign-in token ---- */
+function driveGoogleTokenValid(){ return !!driveGToken && Date.now()<driveGExpiry-60000; }
+function driveGoogleInitClient(){
+  if(driveGClient) return '';
+  if(!(window.google && google.accounts && google.accounts.oauth2)){
+    return 'Google sign-in could not load. Check your internet, and open this app in Chrome.';
+  }
+  driveGClient=google.accounts.oauth2.initTokenClient({
+    client_id:DRIVE_GOOGLE_CLIENT_ID,
+    scope:DRIVE_GOOGLE_SCOPE,
+    callback:function(resp){
+      if(resp && resp.access_token){
+        driveGToken=resp.access_token;
+        driveGExpiry=Date.now()+(Number(resp.expires_in||3600)*1000);
+        if(driveGWaiter){ driveGWaiter.resolve(driveGToken); driveGWaiter=null; }
+      } else if(driveGWaiter){
+        driveGWaiter.reject(new Error((resp && (resp.error_description||resp.error))||'Google sign-in failed.'));
+        driveGWaiter=null;
+      }
+    },
+    error_callback:function(){
+      if(driveGWaiter){
+        driveGWaiter.reject(new Error('The Google window could not open. Allow pop-ups for this site and try again.'));
+        driveGWaiter=null;
+      }
+    }
+  });
+  return '';
+}
+function driveGoogleToken(){
+  if(driveGoogleTokenValid()) return Promise.resolve(driveGToken);
+  const bad=driveGoogleInitClient();
+  if(bad) return Promise.reject(new Error(bad));
+  return new Promise(function(resolve,reject){
+    driveGWaiter={resolve:resolve,reject:reject};
+    driveGClient.requestAccessToken({prompt: driveRead(DRIVE_STORE.gflag)==='1' ? '' : 'consent'});
+  });
+}
+async function driveGoogleApi(url,opts){
+  const token=await driveGoogleToken();
+  const o=Object.assign({},opts||{});
+  o.headers=Object.assign({},o.headers||{},{Authorization:'Bearer '+token});
+  const res=await fetch(url,o);
+  if(!res.ok){
+    if(res.status===401){ driveGToken=null; throw new Error('Google sign-in expired. Please press the button again.'); }
+    if(res.status===403) throw new Error('Google Drive refused the request. Check that the Drive permission was allowed.');
+    if(res.status===404){ driveGFolderId=null; throw new Error('Google Drive could not find the file or folder.'); }
+    throw new Error('Google Drive error '+res.status+'.');
+  }
+  return res;
+}
+
+/* ---- Drive folder / file helpers ---- */
+async function driveFindFolder(){
+  if(driveGFolderId) return driveGFolderId;
+  const q="name='"+DRIVE_GOOGLE_FOLDER+"' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+  const r=await driveGoogleApi('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name)&spaces=drive');
+  const j=await r.json();
+  driveGFolderId=(j.files && j.files[0])?j.files[0].id:null;
+  return driveGFolderId;
+}
+async function driveEnsureFolder(){
+  const found=await driveFindFolder();
+  if(found) return found;
+  const r=await driveGoogleApi('https://www.googleapis.com/drive/v3/files',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:DRIVE_GOOGLE_FOLDER,mimeType:'application/vnd.google-apps.folder'})
+  });
+  const j=await r.json();
+  driveGFolderId=j.id;
+  return driveGFolderId;
+}
+async function driveFindFile(folderId,name){
+  const q="name='"+name+"' and '"+folderId+"' in parents and trashed=false";
+  const r=await driveGoogleApi('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&spaces=drive');
+  const j=await r.json();
+  return (j.files && j.files[0])?j.files[0]:null;
+}
+/* simple upload (fallback only - fine for small data) */
+async function driveUploadSimple(folderId,name,existing,content){
+  if(existing){
+    await driveGoogleApi('https://www.googleapis.com/upload/drive/v3/files/'+existing.id+'?uploadType=media',{
+      method:'PATCH', headers:{'Content-Type':'application/json'}, body:content
+    });
+  } else {
+    const boundary='asmboundary'+Date.now();
+    const meta=JSON.stringify({name:name,parents:[folderId],mimeType:'application/json'});
+    const body='--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+meta+
+      '\r\n--'+boundary+'\r\nContent-Type: application/json\r\n\r\n'+content+'\r\n--'+boundary+'--';
+    await driveGoogleApi('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{
+      method:'POST', headers:{'Content-Type':'multipart/related; boundary='+boundary}, body:body
+    });
+  }
+}
+/* main upload: resumable (built for big files such as scanned documents) */
+async function driveUploadFile(folderId,name,content){
+  const existing=await driveFindFile(folderId,name);
+  const url=existing
+    ? 'https://www.googleapis.com/upload/drive/v3/files/'+existing.id+'?uploadType=resumable'
+    : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable';
+  const meta=existing ? {} : {name:name,parents:[folderId],mimeType:'application/json'};
+  const init=await driveGoogleApi(url,{
+    method: existing?'PATCH':'POST',
+    headers:{'Content-Type':'application/json; charset=UTF-8','X-Upload-Content-Type':'application/json'},
+    body:JSON.stringify(meta)
+  });
+  const session=init.headers.get('Location');
+  if(!session){ await driveUploadSimple(folderId,name,existing,content); return; }
+  const put=await fetch(session,{method:'PUT',headers:{'Content-Type':'application/json'},body:new Blob([content],{type:'application/json'})});
+  if(!put.ok) throw new Error('Google Drive upload failed ('+put.status+').');
+}
+function driveErrText(e){
+  if(e && (e instanceof TypeError || e.name==='TypeError')) return 'Could not reach Google Drive. Check your internet.';
+  return (e && e.message)?e.message:'Google Drive problem.';
+}
+
+/* ---- sign in / out ---- */
+async function driveGoogleSignIn(quiet){
+  try{ await driveGoogleToken(); }
+  catch(e){ driveShowMessage('Google sign-in',(e && e.message)?e.message:'Sign-in failed.','⚠️'); return; }
+  if(!driveIsConnected()){ driveWrite(DRIVE_STORE.auto,'0'); driveWrite(DRIVE_STORE.last,'0'); }
+  driveWrite(DRIVE_STORE.gflag,'1');
+  driveRenderStatus('');
+  if(quiet!==true) driveShowMessage('Google sign-in','Signed in. Press Backup to Google Drive to save your first backup.','✅');
+}
+function driveGoogleDisconnect(){
+  try{
+    if(driveGToken && window.google && google.accounts && google.accounts.oauth2){
+      google.accounts.oauth2.revoke(driveGToken,function(){});
+    }
+  }catch(e){}
+  driveGToken=null; driveGExpiry=0; driveGFolderId=null;
+  driveWrite(DRIVE_STORE.gflag,''); driveWrite(DRIVE_STORE.auto,'0');
+  const l=document.getElementById('driveList'); if(l) l.innerHTML='';
+  driveRenderStatus('');
+  showToast('Disconnected from Google. Your files stay in your Drive.');
+}
+async function driveTestConnection(){
+  const btn=document.getElementById('driveTestBtn');
+  if(btn){ btn.disabled=true; btn.textContent='Testing...'; }
+  try{ await driveGoogleToken(); driveRenderStatus(''); driveShowMessage('Drive Test','Connected ✔ Your Google Drive is ready.','✅'); }
+  catch(e){ driveShowMessage('Drive Test failed',driveErrText(e),'⚠️'); }
+  if(btn){ btn.disabled=false; btn.textContent='Test Connection'; }
+}
+
+/* ---- backup ---- */
+function driveSetBusyUI(busy){
+  const b=document.getElementById('driveBackupBtn'); if(!b) return;
+  b.disabled=busy; b.textContent=busy?'Backing up... please wait':'Backup to Google Drive';
+}
+async function driveBackupNow(){
+  if(driveBusy) return;
+  if(!driveIsConnected()){ driveShowMessage('Drive Backup','Sign in with Google first.','⚠️'); return; }
+  driveBusy=true; driveSetBusyUI(true);
+  const year=new Date().getFullYear();
+  const name=DRIVE_APP_NAME+'-'+year+'.json';
+  let fail='', empty=false;
+  try{
+    const records=await dbGetAll();
+    // Never replace the Drive file with empty data (e.g. new phone / cleared memory)
+    if(records.length===0){ empty=true; }
+    else{
+      const content=JSON.stringify({app:DRIVE_APP_NAME,year:year,exportedAt:new Date().toISOString(),records:records});
+      const folderId=await driveEnsureFolder();
+      await driveUploadFile(folderId,name,content);
+    }
+  }catch(e){ fail=driveErrText(e); }
+  driveBusy=false; driveSetBusyUI(false);
+  if(empty){
+    driveShowMessage('Drive Backup','No documents to back up. If this is a new phone, restore your documents first so the Drive file is not replaced with an empty one.','⚠️');
+  } else if(!fail){
+    driveWrite(DRIVE_STORE.last,String(Date.now())); driveWrite(DRIVE_STORE.auto,'1');
+    driveRenderStatus('');
+    driveShowMessage('Drive Backup','Backup saved to Google Drive.','✅');
+  } else {
+    driveRenderStatus('Backup failed: '+fail);
+    driveShowMessage('Drive Backup failed',fail,'⚠️');
+  }
+}
+
+/* ---- restore from Drive ---- */
+async function driveLoadList(){
+  const btn=document.getElementById('driveRestoreBtn'), box=document.getElementById('driveList');
+  if(!box) return;
+  if(btn){ btn.disabled=true; btn.textContent='Loading...'; }
+  box.innerHTML='';
+  try{
+    const folderId=await driveFindFolder();
+    let files=[];
+    if(folderId){
+      const q="'"+folderId+"' in parents and trashed=false";
+      const r=await driveGoogleApi('https://www.googleapis.com/drive/v3/files?q='+encodeURIComponent(q)+'&fields=files(id,name,modifiedTime)&pageSize=200&spaces=drive');
+      const j=await r.json();
+      const re=new RegExp('^'+DRIVE_APP_NAME+'-(\\d{4}|\\d{2}-\\d{2}-\\d{4})\\.json$');
+      files=(j.files||[]).filter(f=>re.test(f.name)).sort((a,b)=>String(b.modifiedTime).localeCompare(String(a.modifiedTime)));
+    }
+    if(!files.length){
+      const p=document.createElement('p'); p.className='hint'; p.textContent='No Document Holder backup found in your Google Drive.'; box.appendChild(p);
+    } else {
+      files.forEach(function(f){
+        const row=document.createElement('div');
+        row.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;background:#fafafa;';
+        const info=document.createElement('div');
+        const n=document.createElement('div'); n.style.cssText='font-size:.9rem;font-weight:600;word-break:break-all;'; n.textContent=f.name;
+        const t=document.createElement('div'); t.className='hint'; t.style.marginTop='2px'; t.textContent='Saved '+driveFormatTime(Date.parse(f.modifiedTime));
+        info.appendChild(n); info.appendChild(t);
+        const b=document.createElement('button'); b.type='button'; b.className='btn btn-primary btn-sm'; b.textContent='Restore';
+        b.onclick=function(){ driveRestoreFile(f.id,f.name); };
+        row.appendChild(info); row.appendChild(b); box.appendChild(row);
+      });
+    }
+  }catch(e){ driveShowMessage('Google Drive',driveErrText(e),'⚠️'); }
+  if(btn){ btn.disabled=false; btn.textContent='Restore from Google Drive'; }
+}
+function driveRestoreFile(fileId,name){
+  openConfirmModal('Restore from Google Drive',
+    'Documents from '+name+' will be ADDED to this device. Documents that are already here (same Document Type and Item Name) are kept and not duplicated. Continue?',
+    async function(){
+      try{
+        const r=await driveGoogleApi('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media');
+        const data=JSON.parse(await r.text());
+        await driveApplyRestore(data);
+      }catch(e){ driveShowMessage('Restore',(e && e.name==='SyntaxError')?'Invalid backup file.':driveErrText(e),'⚠️'); }
+    });
+}
+async function driveApplyRestore(data){
+  if(!data || !Array.isArray(data.records)){ driveShowMessage('Restore','Invalid backup file.','⚠️'); return; }
+  const key=r=>((r.docType||'')+'||'+(r.itemName||'')).toLowerCase();
+  const have=new Set((await dbGetAll()).map(key));
+  let added=0, skipped=0;
+  for(const rec of data.records){
+    if(!rec || have.has(key(rec))){ skipped++; continue; }
+    const copy=Object.assign({},rec); delete copy.id;   // new local id, so nothing is overwritten
+    await dbAdd(copy); have.add(key(rec)); added++;
+  }
+  await refreshCache(); renderAllRecordsList(); updateStorageInfo();
+  driveShowMessage('Restore','Restored '+added+' document record(s)'+(skipped?(' ('+skipped+' already on this device).'):'.'),'✅');
+}
+
+/* ---- daily reminder (message only - never saves by itself) ---- */
+function driveLastDueTime(nowMs){
+  const d=new Date(nowMs); d.setHours(DRIVE_AUTO_HOUR,0,0,0);
+  if(d.getTime()>nowMs) d.setDate(d.getDate()-1);
+  return d.getTime();
+}
+function driveIsDue(){
+  if(!driveIsConnected() || !driveAutoEnabled()) return false;
+  return driveLastSuccess()<driveLastDueTime(Date.now());
+}
+function driveRenderBanner(){
+  const el=document.getElementById('driveBanner'); if(!el) return;
+  if(!(driveIsDue() && !driveBusy)){ el.dataset.shown=''; el.style.display='none'; el.textContent=''; return; }
+  if(el.dataset.shown==='1') return;
+  el.dataset.shown='1'; el.textContent='';
+  el.style.cssText='display:block;background:#eff6ff;border:1px solid #93c5fd;color:#1e40af;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:.85rem;line-height:1.4;';
+  const p=document.createElement('div');
+  p.textContent='Daily backup: your documents were not saved to Google Drive since yesterday evening.';
+  const b=document.createElement('button');
+  b.type='button'; b.className='btn btn-primary btn-sm'; b.style.marginTop='8px'; b.textContent='Backup now';
+  b.onclick=function(){ driveBackupNow(); };
+  el.appendChild(p); el.appendChild(b);
+}
+
+/* ---- screen status ---- */
+function driveRenderStatus(errMsg){
+  const connected=driveIsConnected();
+  const quiet=document.getElementById('driveQuietRow'), main=document.getElementById('driveMain');
+  if(quiet) quiet.style.display=connected?'none':'block';
+  if(main) main.style.display=connected?'block':'none';
+  const st=document.getElementById('driveStatusLine'), last=document.getElementById('driveLastLine'), auto=document.getElementById('driveAutoLine');
+  if(st){
+    if(errMsg){ st.textContent=errMsg; st.style.color='var(--danger)'; }
+    else{ st.textContent='Connected (Google sign-in)'; st.style.color='#1e7a46'; }
+  }
+  if(last){ const t=driveLastSuccess(); last.textContent=t?('Last Drive backup: '+driveFormatTime(t)):'Last Drive backup: not yet'; }
+  if(auto) auto.textContent=driveAutoEnabled()
+    ? 'Daily reminder: when a backup is pending you will see a Backup now button on top. Backups include your uploaded files, so they can be large. Google asks for a quick confirmation about once an hour.'
+    : 'The daily reminder starts after your first Drive backup. Backups include your uploaded files, so they can be large.';
+  driveRenderBanner();
+}
+function driveInit(){
+  driveRenderStatus('');
+  setInterval(driveRenderBanner,60*1000);
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden) driveRenderBanner(); });
+}
+window.addEventListener('DOMContentLoaded',driveInit);
+/* ===================== END GOOGLE DRIVE BACKUP MODULE ===================== */
+
+/* ===================== FIRST-RUN SCREEN MODULE (isolated) =====================
+   Shows once when this device has no documents, so a new phone is not started empty by mistake. */
+const FIRSTRUN_KEY='asm_pdh_firstrun_done';
+function firstRunMarkDone(){ try{ localStorage.setItem(FIRSTRUN_KEY,'1'); }catch(e){} }
+function firstRunCheck(){
+  if(allRecordsCache.length>0){ firstRunMarkDone(); return; }
+  let done=''; try{ done=localStorage.getItem(FIRSTRUN_KEY)||''; }catch(e){}
+  if(done==='1') return;
+  document.getElementById('firstRunModal').style.display='flex';
+}
+function firstRunClose(){ document.getElementById('firstRunModal').style.display='none'; }
+async function firstRunRestoreDrive(){
+  firstRunClose();
+  switchTab('backup');
+  if(!driveIsConnected()) await driveGoogleSignIn(true);
+  if(driveIsConnected()) driveLoadList();
+}
+function firstRunRestoreFile(){
+  firstRunClose();
+  switchTab('backup');
+  showToast('Choose your backup file below and press Restore from File.');
+}
+function firstRunStartFresh(){
+  firstRunMarkDone();
+  firstRunClose();
+}
+/* ===================== END FIRST-RUN SCREEN MODULE ===================== */
+
+/* ===================== HELP MODULE (isolated - text only, never touches data) ===================== */
+const HELP_PRIVACY_URL='https://asm-cdm.github.io/asm-privacy/';
+const HELP_TOPICS=[
+  {icon:'➕',title:'Add / Edit',text:'Save a document. Choose or type the Document Type (use + Add / Edit to manage types), enter the item name, add remarks if you like, and upload up to 5 files (PDF, JPEG, PNG or text). Press Save Document. The app warns you if the same type and item already exist.'},
+  {icon:'🔍',title:'Search / View',text:'Find your documents. Type in the search box or pick from the list, then tap a record to open it. You can view the attached files, share selected details and files on WhatsApp, edit the record, or delete it.'},
+  {icon:'💾',title:'Backup / Restore',text:'Keep your documents safe. Download Backup saves a file on your phone, and Restore from File adds it back. Sign in with Google to back up to your own Google Drive. On a new phone, sign in with the same Google account and press Restore from Google Drive. Backups include your uploaded files, so they can be large. Delete All Data erases everything, so use it carefully.'},
+  {icon:'🔒',title:'Privacy Policy',text:'Your documents stay on this device. If you use Google Drive backup, a copy goes only to your own Google Drive, into files this app creates. We do not collect, sell or share your data, and we cannot see it. You can remove the app\'s access any time at myaccount.google.com/permissions.',link:HELP_PRIVACY_URL}
+];
+function helpOpen(){ helpShowList(); document.getElementById('helpModal').style.display='flex'; }
+function helpClose(){ document.getElementById('helpModal').style.display='none'; }
+function helpShowList(){
+  document.getElementById('helpTitle').textContent='❓ Help';
+  document.getElementById('helpBackBtn').style.display='none';
+  const body=document.getElementById('helpBody'); body.innerHTML='';
+  HELP_TOPICS.forEach(function(t,i){
+    const b=document.createElement('button');
+    b.type='button'; b.className='btn btn-outline';
+    b.style.cssText='display:block;width:100%;text-align:left;margin-bottom:8px;';
+    b.textContent=t.icon+' '+t.title;
+    b.onclick=function(){ helpShowTopic(i); };
+    body.appendChild(b);
+  });
+}
+function helpShowTopic(i){
+  const t=HELP_TOPICS[i];
+  document.getElementById('helpTitle').textContent=t.icon+' '+t.title;
+  const body=document.getElementById('helpBody'); body.innerHTML='';
+  const p=document.createElement('p');
+  p.style.cssText='font-size:.95rem;color:var(--text);line-height:1.6;margin:0;';
+  p.textContent=t.text;
+  body.appendChild(p);
+  if(t.link){
+    const a=document.createElement('a');
+    a.href=t.link; a.target='_blank'; a.rel='noopener';
+    a.style.cssText='display:inline-block;margin-top:12px;font-size:.85rem;';
+    a.textContent='Open the full policy online (needs internet)';
+    body.appendChild(a);
+  }
+  document.getElementById('helpBackBtn').style.display='block';
+}
+/* ===================== END HELP MODULE ===================== */
 
 function showToast(msg) {
   const t = document.getElementById("toast");
