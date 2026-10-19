@@ -1770,7 +1770,6 @@ function escapeJs(str) {
    Google sign-in only. No automatic backup - a daily reminder message only.
    Uses the app's own info popup (openInfoModal) for messages. */
 const DRIVE_APP_NAME='document-holder';
-const DRIVE_AUTO_HOUR=20; // reminder time: 8 PM
 const DRIVE_STORE={ last:'asm_pdh_drive_lastSuccess', auto:'asm_pdh_drive_autoOn', gflag:'asm_pdh_drive_google' };
 const DRIVE_GOOGLE_CLIENT_ID='978793704970-e1isrkd8too2qlistrtpqdgn8oj2h98j.apps.googleusercontent.com';
 const DRIVE_GOOGLE_SCOPE='https://www.googleapis.com/auth/drive.file';
@@ -1912,7 +1911,7 @@ function driveErrText(e){
 async function driveGoogleSignIn(quiet){
   try{ await driveGoogleToken(); }
   catch(e){ driveShowMessage('Google sign-in',(e && e.message)?e.message:'Sign-in failed.','⚠️'); return; }
-  if(!driveIsConnected()){ driveWrite(DRIVE_STORE.auto,'0'); driveWrite(DRIVE_STORE.last,'0'); }
+  if(!driveIsConnected()){ driveWrite(DRIVE_STORE.auto,'0'); driveWrite(DRIVE_STORE.last,'0'); driveWrite(DRIVE_SIGNEDIN_KEY,String(Date.now())); }
   driveWrite(DRIVE_STORE.gflag,'1');
   driveRenderStatus('');
   if(quiet!==true) driveShowMessage('Google sign-in','Signed in. Press Backup to Google Drive to save your first backup.','✅');
@@ -2031,28 +2030,24 @@ async function driveApplyRestore(data){
   driveShowMessage('Restore','Restored '+added+' document record(s)'+(skipped?(' ('+skipped+' already on this device).'):'.'),'✅');
 }
 
-/* ---- daily reminder (message only - never saves by itself) ---- */
-function driveLastDueTime(nowMs){
-  const d=new Date(nowMs); d.setHours(DRIVE_AUTO_HOUR,0,0,0);
-  if(d.getTime()>nowMs) d.setDate(d.getDate()-1);
-  return d.getTime();
-}
-function driveIsDue(){
-  if(!driveIsConnected() || !driveAutoEnabled()) return false;
-  return driveLastSuccess()<driveLastDueTime(Date.now());
-}
-function driveRenderBanner(){
+/* ---- "not backed up" warning (isolated): shows 4 seconds when the app opens, only if the last Drive backup is older than 3 days ---- */
+const DRIVE_STALE_DAYS=3;
+const DRIVE_SIGNEDIN_KEY='asm_pdh_drive_signedIn';   // when Google sign-in was done (used if no backup was made yet)
+let driveWarnTimer=null, driveWarnLastShown=0;
+function driveWarnIfStale(){
+  if(!driveIsConnected()) return;
   const el=document.getElementById('driveBanner'); if(!el) return;
-  if(!(driveIsDue() && !driveBusy)){ el.dataset.shown=''; el.style.display='none'; el.textContent=''; return; }
-  if(el.dataset.shown==='1') return;
-  el.dataset.shown='1'; el.textContent='';
-  el.style.cssText='display:block;background:#eff6ff;border:1px solid #93c5fd;color:#1e40af;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:.85rem;line-height:1.4;';
-  const p=document.createElement('div');
-  p.textContent='Daily backup: your documents were not saved to Google Drive since yesterday evening.';
-  const b=document.createElement('button');
-  b.type='button'; b.className='btn btn-primary btn-sm'; b.style.marginTop='8px'; b.textContent='Backup now';
-  b.onclick=function(){ driveBackupNow(); };
-  el.appendChild(p); el.appendChild(b);
+  const last=driveLastSuccess();
+  const signedIn=parseInt(driveRead(DRIVE_SIGNEDIN_KEY),10)||0;
+  const ref=Math.max(last,signedIn);
+  if(ref===0){ driveWrite(DRIVE_SIGNEDIN_KEY,String(Date.now())); return; }   // start counting now
+  if(Date.now()-ref<DRIVE_STALE_DAYS*24*60*60*1000) return;
+  if(Date.now()-driveWarnLastShown<60*1000) return;                           // no flicker if the app is switched quickly
+  driveWarnLastShown=Date.now();
+  el.textContent='⚠️ Not backed up to Google Drive recently. Go to Backup / Restore.';
+  el.style.cssText='display:block;background:#fffbeb;border:1px solid #fcd34d;color:#92400e;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:.85rem;font-weight:600;line-height:1.4;';
+  clearTimeout(driveWarnTimer);
+  driveWarnTimer=setTimeout(function(){ el.style.display='none'; el.textContent=''; },4000);
 }
 
 /* ---- screen status ---- */
@@ -2067,15 +2062,12 @@ function driveRenderStatus(errMsg){
     else{ st.textContent='Connected (Google sign-in)'; st.style.color='#1e7a46'; }
   }
   if(last){ const t=driveLastSuccess(); last.textContent=t?('Last Drive backup: '+driveFormatTime(t)):'Last Drive backup: not yet'; }
-  if(auto) auto.textContent=driveAutoEnabled()
-    ? 'Daily reminder: when a backup is pending you will see a Backup now button on top. Backups include your uploaded files, so they can be large. Google asks for a quick confirmation about once an hour.'
-    : 'The daily reminder starts after your first Drive backup. Backups include your uploaded files, so they can be large.';
-  driveRenderBanner();
+  if(auto) auto.textContent='Nothing is saved automatically. If there is no backup for 3 days, a short warning shows when you open the app. Backups include your uploaded files, so they can be large. Google asks for a quick confirmation about once an hour.';
 }
 function driveInit(){
   driveRenderStatus('');
-  setInterval(driveRenderBanner,60*1000);
-  document.addEventListener('visibilitychange',function(){ if(!document.hidden) driveRenderBanner(); });
+  setTimeout(driveWarnIfStale,1500);
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden) driveWarnIfStale(); });
 }
 window.addEventListener('DOMContentLoaded',driveInit);
 /* ===================== END GOOGLE DRIVE BACKUP MODULE ===================== */
