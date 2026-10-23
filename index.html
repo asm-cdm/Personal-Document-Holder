@@ -374,7 +374,7 @@
       </div>
 
       <div id="rdLinksWrap" style="display:none;">
-        <label style="font-size:.8rem;color:var(--muted);font-weight:600;margin-top:14px;display:block;">Links</label>
+        <label style="font-size:.8rem;color:var(--muted);font-weight:600;margin-top:14px;display:block;">Links (Select to share via WhatsApp)</label>
         <div id="rdLinksList"></div>
       </div>
 
@@ -615,7 +615,6 @@
 </div>
 
 <footer>
-  <div class="footer-note">Your data stays on this device — Backup regularly to stay safe</div>
   <div class="footer-brand">Powered by A.S.M Consultancy Services</div>
 </footer>
 
@@ -1522,8 +1521,9 @@ async function shareSelectedOnWhatsApp() {
   if (!currentRecord) return;
 
   const fileCheckboxes = document.querySelectorAll(".shareFileChk:checked");
-  if (fileCheckboxes.length === 0) {
-    showToast("Please select at least one file to share.");
+  const selectedLinks = linkGetSelected();
+  if (fileCheckboxes.length === 0 && selectedLinks.length === 0) {
+    showToast("Please select at least one file or link to share.");
     return;
   }
 
@@ -1555,7 +1555,13 @@ async function shareSelectedOnWhatsApp() {
   if (document.getElementById("chkDocType").checked) lines.push("Document Type: " + currentRecord.docType);
   if (document.getElementById("chkItemName").checked) lines.push("Item Name: " + currentRecord.itemName);
   if (currentRecord.remarks && document.getElementById("chkRemarks").checked) lines.push("Remarks: " + currentRecord.remarks);
+  selectedLinks.forEach(l => lines.push((l.note ? l.note + "\n" : "") + l.url));
   const textDetails = lines.join("\n");
+
+  if (selectedFiles.length === 0) {
+    fallbackWhatsAppTextShare(textDetails);
+    return;
+  }
 
   if (navigator.canShare && navigator.canShare({ files: selectedFiles })) {
     try {
@@ -1634,6 +1640,12 @@ function linkLoad(rec) {
   pendingLinks = (rec && rec.links ? rec.links : []).map(l => ({ url: l.url || "", note: l.note || "" }));
   linkRenderForm();
 }
+function linkGetSelected() {
+  if (!currentRecord || !currentRecord.links) return [];
+  return Array.from(document.querySelectorAll(".shareLinkChk:checked"))
+    .map(cb => currentRecord.links[parseInt(cb.value)])
+    .filter(Boolean);
+}
 function linkReset() { pendingLinks = []; linkRenderForm(); }
 function linkRenderDetail(rec) {
   const wrap = document.getElementById("rdLinksWrap");
@@ -1642,12 +1654,13 @@ function linkRenderDetail(rec) {
   const links = (rec && rec.links) ? rec.links : [];
   if (!links.length) { wrap.style.display = "none"; list.innerHTML = ""; return; }
   wrap.style.display = "";
-  list.innerHTML = links.map(l => `
+  list.innerHTML = links.map((l, i) => `
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;background:#fafafa;">
-      <div style="min-width:0;flex:1;">
+      <input type="checkbox" class="shareLinkChk" id="chkLink_${i}" value="${i}" checked style="width:auto;margin:0;flex:none;">
+      <label for="chkLink_${i}" style="min-width:0;flex:1;margin:0;cursor:pointer;">
         <div style="font-size:.9rem;font-weight:600;word-break:break-word;">${escapeHtml(l.note || l.url)}</div>
         ${l.note ? `<div class="hint" style="margin-top:2px;word-break:break-all;">${escapeHtml(l.url)}</div>` : ""}
-      </div>
+      </label>
       <a class="btn btn-primary btn-sm" href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;white-space:nowrap;">Open</a>
     </div>`).join("");
 }
