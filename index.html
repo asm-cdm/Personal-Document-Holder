@@ -373,6 +373,11 @@
         </div>
       </div>
 
+      <div id="rdLinksWrap" style="display:none;">
+        <label style="font-size:.8rem;color:var(--muted);font-weight:600;margin-top:14px;display:block;">Links</label>
+        <div id="rdLinksList"></div>
+      </div>
+
       <button class="btn btn-whatsapp" onclick="shareSelectedOnWhatsApp()">Share Document & Files</button>
 
       <div class="btn-row">
@@ -417,13 +422,18 @@
         <label for="fRemarks">Remarks / Description</label>
         <textarea id="fRemarks" rows="2" placeholder="Enter optional extra details or notes..."></textarea>
 
-        <label for="fFiles">Upload Documents (PDF / JPEG / PNG, max 5 uploads)</label>
-        <input type="file" id="fFiles" accept=".jpg,.jpeg,.png,.pdf,.txt,image/jpeg,image/png,application/pdf,text/plain" multiple onchange="handleFileSelect(event)">
+        <label for="fFiles">Upload Documents (PDF / JPEG / PNG / Audio, max 5 uploads)</label>
+        <input type="file" id="fFiles" accept=".jpg,.jpeg,.png,.pdf,.txt,.mp3,.m4a,.wav,.ogg,.opus,.aac,image/jpeg,image/png,application/pdf,text/plain,audio/*" multiple onchange="handleFileSelect(event)">
         
         <div class="file-input-wrap" id="existingFilesWrap" style="display:none;">
           <div class="file-grid-container" id="existingFilesGrid"></div>
         </div>
         <div class="hint">Up to 5 files allowed.</div>
+
+        <label style="margin-top:14px;display:block;">Links (videos / useful pages, max 5)</label>
+        <div id="linksFormList"></div>
+        <button type="button" id="linkAddBtn" class="btn btn-outline btn-sm" onclick="linkAddRow()">+ Add Link</button>
+        <div class="hint">Paste the link and write a short explanation, e.g. "How to claim insurance - YouTube".</div>
 
         <div class="btn-row">
           <button type="submit" id="saveSubmitBtn" class="btn btn-primary">Save Document</button>
@@ -628,6 +638,7 @@ let allRecordsCache = [];
 let currentRecord = null;
 let pendingNewFiles = [];
 let pendingKeptFiles = [];
+let pendingLinks = [];
 let detectedDuplicateRecord = null;
 
 const DEFAULT_DOC_TYPES = ["Warranty", "Bill", "Price list"];
@@ -758,7 +769,8 @@ function handleSearchInput() {
   const terms = lowerQuery ? lowerQuery.split(/\s+/) : [];
   const matches = allRecordsCache.filter(r => {
     if (!lowerQuery) return true;
-    const text = `${r.docType || ''} ${r.itemName || ''} ${r.remarks || ''}`.toLowerCase();
+    const linkText = (r.links || []).map(l => (l.note || '') + ' ' + (l.url || '')).join(' ');
+    const text = `${r.docType || ''} ${r.itemName || ''} ${r.remarks || ''} ${linkText}`.toLowerCase();
     return terms.every(term => text.includes(term));
   });
 
@@ -766,7 +778,7 @@ function handleSearchInput() {
     <div class="dd-item" onclick="selectSearchResult(${r.id})">
       <div class="dd-info">
         <span class="dd-name">${escapeHtml(r.docType)} - ${escapeHtml(r.itemName)}</span>
-        <span class="dd-num">${r.files ? r.files.length : 0} file(s)</span>
+        <span class="dd-num">${r.files ? r.files.length : 0} file(s)${(r.links && r.links.length) ? " · " + r.links.length + " link(s)" : ""}</span>
       </div>
     </div>
   `).join("");
@@ -1150,6 +1162,7 @@ async function openRecordDetail(id) {
   }
 
   renderRecordFiles();
+  linkRenderDetail(rec);
   document.getElementById("recordDetailCard").scrollIntoView({ behavior: "smooth" });
 }
 
@@ -1172,9 +1185,18 @@ function renderRecordFiles() {
     const isImage = f.type && f.type.startsWith("image/");
     const isPdf = f.type && f.type.includes("pdf");
     const isText = f.type && f.type.includes("text");
+    const isAudio = fileIsAudio(f);
 
     let previewHtml = '';
-    if (isImage) {
+    if (isAudio) {
+      previewHtml = `
+        <div class="file-preview-box" onclick="openFileViewer(${idx})">
+          <div class="pdf-badge-box">
+            <span style="font-size:1.5rem;">🎵</span>
+            <span>▶ Play</span>
+          </div>
+        </div>`;
+    } else if (isImage) {
       previewHtml = `
         <div class="file-preview-box" onclick="openFileViewer(${idx})">
           <img src="${f.data}" alt="${escapeHtml(f.name)}">
@@ -1219,7 +1241,9 @@ function openFileViewer(index) {
 
   let innerHtml = '';
   let zoomable = false;
-  if (file.type && file.type.startsWith("image/")) {
+  if (fileIsAudio(file)) {
+    innerHtml = audioPlayerHtml(file);
+  } else if (file.type && file.type.startsWith("image/")) {
     innerHtml = `<div style="padding:10px 20px; text-align:center;">
         <img src="${file.data}" style="max-width:100%; max-height:45vh; object-fit:contain; border-radius:8px;">
         <p style="margin:16px 0; color:var(--muted); font-size:0.9rem;">Tap below to open this image in your phone's own viewer for full pinch-zoom.</p>
@@ -1309,7 +1333,33 @@ function guessMimeFromName(name) {
   if (ext === "pdf") return "application/pdf";
   if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
   if (ext === "png") return "image/png";
+  if (ext === "mp3") return "audio/mpeg";
+  if (ext === "m4a") return "audio/mp4";
+  if (ext === "aac") return "audio/aac";
+  if (ext === "wav") return "audio/wav";
+  if (ext === "ogg" || ext === "opus") return "audio/ogg";
   return "application/pdf";
+}
+
+/* ---- Audio module (isolated): helpers, size limit, in-app player ---- */
+const AUDIO_MAX_BYTES = 5 * 1024 * 1024;
+function fileIsAudio(f) {
+  if (!f) return false;
+  if (f.type && f.type.startsWith("audio/")) return true;
+  return /\.(mp3|m4a|wav|ogg|opus|aac)$/i.test(f.name || "");
+}
+function audioTooBig(file) {
+  return fileIsAudioName(file.name, file.type) && file.size > AUDIO_MAX_BYTES;
+}
+function fileIsAudioName(name, type) { return fileIsAudio({ name: name, type: type }); }
+function audioPlayerHtml(file) {
+  const mime = (file.type && file.type.startsWith("audio/")) ? file.type : guessMimeFromName(file.name);
+  const src = (file.data || "").replace(/^data:[^;,]*/, "data:" + mime);
+  return `<div style="padding:30px 20px; text-align:center;">
+      <div style="font-size:2.2rem;">🎵</div>
+      <p style="margin:8px 0 14px; font-size:0.9rem; word-break:break-all;">${escapeHtml(file.name)}</p>
+      <audio controls preload="metadata" style="width:100%;" src="${src}"></audio>
+    </div>`;
 }
 
 /* ---- Text file "Open in new tab" module (isolated) ---- */
@@ -1539,10 +1589,67 @@ async function handleFileSelect(e) {
     return;
   }
   for (const f of files) {
+    if (audioTooBig(f)) { showToast("File too large (audio max 5 MB): " + f.name); continue; }
     const base64 = await fileToBase64(f);
     pendingNewFiles.push({ name: f.name, type: f.type || guessMimeFromName(f.name), data: base64 });
   }
   renderExistingFilesPreview();
+}
+
+
+/* ===================== LINKS MODULE (isolated) =====================
+   Each link = { url, note }. Stored inside the record as record.links (so backup / restore carry it). Max 5. */
+const LINK_MAX = 5;
+function linkFixUrl(u) {
+  u = (u || "").trim();
+  if (!u) return "";
+  if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+  return u;
+}
+function linkRenderForm() {
+  const wrap = document.getElementById("linksFormList");
+  if (!wrap) return;
+  wrap.innerHTML = pendingLinks.map((l, i) => `
+    <div class="card" style="padding:10px;margin:0 0 8px;background:#fafafa;">
+      <input type="text" placeholder="Link (https://...)" value="${escapeHtml(l.url)}" oninput="linkUpdate(${i},'url',this.value)" style="margin-bottom:6px;">
+      <input type="text" placeholder="Explanation (what is this link?)" value="${escapeHtml(l.note)}" oninput="linkUpdate(${i},'note',this.value)" style="margin-bottom:6px;">
+      <button type="button" class="btn btn-sm btn-danger" style="width:100%;" onclick="linkRemove(${i})">✕ Remove Link</button>
+    </div>`).join("");
+  const btn = document.getElementById("linkAddBtn");
+  if (btn) btn.style.display = pendingLinks.length >= LINK_MAX ? "none" : "";
+}
+function linkAddRow() {
+  if (pendingLinks.length >= LINK_MAX) { showToast("Max " + LINK_MAX + " links allowed"); return; }
+  pendingLinks.push({ url: "", note: "" });
+  linkRenderForm();
+}
+function linkUpdate(i, field, val) { if (pendingLinks[i]) pendingLinks[i][field] = val; }
+function linkRemove(i) { pendingLinks.splice(i, 1); linkRenderForm(); }
+function linkCollect() {
+  return pendingLinks
+    .map(l => ({ url: linkFixUrl(l.url), note: (l.note || "").trim() }))
+    .filter(l => l.url);
+}
+function linkLoad(rec) {
+  pendingLinks = (rec && rec.links ? rec.links : []).map(l => ({ url: l.url || "", note: l.note || "" }));
+  linkRenderForm();
+}
+function linkReset() { pendingLinks = []; linkRenderForm(); }
+function linkRenderDetail(rec) {
+  const wrap = document.getElementById("rdLinksWrap");
+  const list = document.getElementById("rdLinksList");
+  if (!wrap || !list) return;
+  const links = (rec && rec.links) ? rec.links : [];
+  if (!links.length) { wrap.style.display = "none"; list.innerHTML = ""; return; }
+  wrap.style.display = "";
+  list.innerHTML = links.map(l => `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;background:#fafafa;">
+      <div style="min-width:0;flex:1;">
+        <div style="font-size:.9rem;font-weight:600;word-break:break-word;">${escapeHtml(l.note || l.url)}</div>
+        ${l.note ? `<div class="hint" style="margin-top:2px;word-break:break-all;">${escapeHtml(l.url)}</div>` : ""}
+      </div>
+      <a class="btn btn-primary btn-sm" href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;white-space:nowrap;">Open</a>
+    </div>`).join("");
 }
 
 function renderExistingFilesPreview() {
@@ -1563,9 +1670,18 @@ function renderExistingFilesPreview() {
     const isImage = f.type && f.type.startsWith("image/");
     const isPdf = f.type && f.type.includes("pdf");
     const isText = f.type && f.type.includes("text");
+    const isAudio = fileIsAudio(f);
 
     let previewHtml = '';
-    if (isImage) {
+    if (isAudio) {
+      previewHtml = `
+        <div class="file-preview-box">
+          <div class="pdf-badge-box">
+            <span style="font-size:1.5rem;">🎵</span>
+            <span>Audio File</span>
+          </div>
+        </div>`;
+    } else if (isImage) {
       previewHtml = `
         <div class="file-preview-box">
           <img src="${f.data}" alt="${escapeHtml(f.name)}">
@@ -1618,6 +1734,7 @@ function editCurrentRecord() {
   pendingKeptFiles = (currentRecord.files || []).map(f => ({ ...f }));
   pendingNewFiles = [];
   renderExistingFilesPreview();
+  linkLoad(currentRecord);
   switchTab("add");
 }
 
@@ -1631,6 +1748,7 @@ function resetForm() {
   pendingKeptFiles = [];
   pendingNewFiles = [];
   renderExistingFilesPreview();
+  linkReset();
 }
 
 document.getElementById("recordForm").addEventListener("submit", async function(e) {
@@ -1648,6 +1766,7 @@ document.getElementById("recordForm").addEventListener("submit", async function(
     itemName, 
     remarks: remarks || null, 
     files, 
+    links: linkCollect(), 
     updatedAt: Date.now() 
   };
 
@@ -2012,12 +2131,13 @@ function driveRestoreFile(fileId,name){
       try{
         const r=await driveGoogleApi('https://www.googleapis.com/drive/v3/files/'+fileId+'?alt=media');
         const data=JSON.parse(await r.text());
-        await driveApplyRestore(data);
+        const okR=await driveApplyRestore(data);
+        if(okR) driveClearList();
       }catch(e){ driveShowMessage('Restore',(e && e.name==='SyntaxError')?'Invalid backup file.':driveErrText(e),'⚠️'); }
     });
 }
 async function driveApplyRestore(data){
-  if(!data || !Array.isArray(data.records)){ driveShowMessage('Restore','Invalid backup file.','⚠️'); return; }
+  if(!data || !Array.isArray(data.records)){ driveShowMessage('Restore','Invalid backup file.','⚠️'); return false; }
   const key=r=>((r.docType||'')+'||'+(r.itemName||'')).toLowerCase();
   const have=new Set((await dbGetAll()).map(key));
   let added=0, skipped=0;
@@ -2028,7 +2148,10 @@ async function driveApplyRestore(data){
   }
   await refreshCache(); renderAllRecordsList(); updateStorageInfo();
   driveShowMessage('Restore','Restored '+added+' document record(s)'+(skipped?(' ('+skipped+' already on this device).'):'.'),'✅');
+  return true;
 }
+/* ---- Drive restore list cleanup (isolated): removes file name + Restore button after a successful restore ---- */
+function driveClearList(){ const box=document.getElementById('driveList'); if(box) box.innerHTML=''; }
 
 /* ---- "not backed up" warning (isolated): shows 4 seconds when the app opens, only if the last Drive backup is older than 3 days ---- */
 const DRIVE_STALE_DAYS=3;
@@ -2103,7 +2226,7 @@ function firstRunStartFresh(){
 /* ===================== HELP MODULE (isolated - text only, never touches data) ===================== */
 const HELP_PRIVACY_URL='https://asm-cdm.github.io/asm-privacy/';
 const HELP_TOPICS=[
-  {icon:'➕',title:'Add / Edit',text:'Save a document. Choose or type the Document Type (use + Add / Edit to manage types), enter the item name, add remarks if you like, and upload up to 5 files (PDF, JPEG, PNG or text). Press Save Document. The app warns you if the same type and item already exist.'},
+  {icon:'➕',title:'Add / Edit',text:'Save a document. Choose or type the Document Type (use + Add / Edit to manage types), enter the item name, add remarks if you like, and upload up to 5 files (PDF, JPEG, PNG, text or audio up to 5 MB each), and add up to 5 links with a short explanation (videos or useful pages). Press Save Document. The app warns you if the same type and item already exist.'},
   {icon:'🔍',title:'Search / View',text:'Find your documents. Type in the search box or pick from the list, then tap a record to open it. You can view the attached files, share selected details and files on WhatsApp, edit the record, or delete it.'},
   {icon:'💾',title:'Backup / Restore',text:'Keep your documents safe. Download Backup saves a file on your phone, and Restore from File adds it back. Sign in with Google to back up to your own Google Drive. On a new phone, sign in with the same Google account and press Restore from Google Drive. Backups include your uploaded files, so they can be large. Delete All Data erases everything, so use it carefully.'},
   {icon:'🔒',title:'Privacy Policy',text:'Your documents stay on this device. If you use Google Drive backup, a copy goes only to your own Google Drive, into files this app creates. We do not collect, sell or share your data, and we cannot see it. You can remove the app\'s access any time at myaccount.google.com/permissions.',link:HELP_PRIVACY_URL}
