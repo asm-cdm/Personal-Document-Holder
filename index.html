@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Personal Document Holder</title>
-<link rel="icon" type="image/png" href="https://asm-cdm.github.io/Personal-Document-Holder/asm-favicon.png">
-<link rel="apple-touch-icon" href="https://asm-cdm.github.io/Personal-Document-Holder/asm-favicon.png">
+<link rel="icon" type="image/png" href="https://asm-cdm.github.io/Personal-Document-Holder/favicon-192.png">
+<link rel="apple-touch-icon" href="https://asm-cdm.github.io/Personal-Document-Holder/favicon-192.png">
 <link rel="manifest" href="https://asm-cdm.github.io/Personal-Document-Holder/manifest.json">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 
@@ -2147,6 +2147,14 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 2500);
+}
+</script>
+<script>
+/* PWA: service worker registration */
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
 }
 </script>
 </body>
