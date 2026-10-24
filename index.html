@@ -316,6 +316,28 @@
     display:none; position:fixed; top:0;left:0;width:100vw;height:100vh; background:rgba(0,0,0,0.6); z-index:9998; align-items:center;justify-content:center;padding:16px;
   }
   .modal-content { background:#fff;border-radius:var(--radius);padding:20px;width:100%;max-width:500px; max-height: 90vh; overflow-y: auto; }
+  /* ===== ASSETS MODULE ===== */
+  .ast-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;}
+  .ast-bar input,.ast-bar select{flex:1;min-width:120px;}
+  .ast-item{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:#fff;}
+  .ast-item.off{opacity:.6;background:#f1f3f5;}
+  .ast-item .ast-main{flex:1;cursor:pointer;}
+  .ast-item .t{font-weight:600;color:var(--brand-dark);}
+  .ast-item .s{font-size:.82rem;color:var(--muted);}
+  .ast-tag{display:inline-block;font-size:.7rem;padding:1px 7px;border-radius:9px;background:#e8f7ee;color:#1e7a46;margin-left:6px;}
+  .ast-tag.off{background:#eee;color:#666;}
+  .ast-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px dashed var(--border);font-size:.92rem;}
+  .ast-row b{min-width:120px;color:var(--muted);font-weight:600;}
+  .ast-keybox{font-family:monospace;font-size:1.3rem;letter-spacing:2px;background:var(--brand-light);padding:12px;border-radius:10px;text-align:center;margin:10px 0;word-break:break-all;}
+  .ast-err{color:var(--danger);font-size:.85rem;margin:6px 0;min-height:1em;}
+  .ast-sec{font-size:.78rem;font-weight:700;color:var(--brand-dark);text-transform:uppercase;letter-spacing:.6px;border-bottom:2px solid var(--brand-light);padding-bottom:4px;margin:18px 0 8px;}
+  .ast-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px;}
+  .ast-grid .full{grid-column:1/-1;}
+  .ast-grid input,.ast-grid select{width:100%;}
+  .ast-bar .btn{flex:1;white-space:nowrap;}
+  .ast-gap{height:18px;}
+  #astFormCard label{display:block;margin:12px 0 4px;}
+  #astFormCard .ast-grid label{margin-top:12px;}
 </style>
 </head>
 <body>
@@ -329,6 +351,7 @@
 <nav class="tabs">
   <button id="tabAddBtn" onclick="openAddTab()">Add / Edit</button>
   <button id="tabSearchBtn" class="active" onclick="switchTab('search')">Search / View</button>
+  <button id="tabAssetsBtn" onclick="switchTab('assets')">🔒 Assets</button>
   <button id="tabBackupBtn" onclick="switchTab('backup')">Backup / Restore</button>
 </nav>
 
@@ -443,6 +466,128 @@
     </div>
   </section>
 
+  <!-- ASSETS TAB (isolated module) -->
+  <section id="tab-assets" style="display:none;">
+    <div class="card" id="astLockCard"></div>
+    <div class="card" id="astOpenCard" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;">
+        <h2 class="section-title" style="margin:0;">Assets</h2>
+        <button type="button" class="btn btn-outline" style="padding:6px 12px;" onclick="astPdfClick()">📄 PDF</button>
+      </div>
+      <div class="ast-bar">
+        <button type="button" class="btn btn-primary" onclick="astOpenForm()">+ Add Asset</button>
+        <button type="button" class="btn btn-outline" onclick="astLock()">🔒 Lock</button>
+      </div>
+      <div class="ast-bar">
+        <input type="text" id="astSearch" placeholder="Type to filter assets..." oninput="astRenderList()">
+        <select id="astStatusFilter" onchange="astRenderList()"><option>Active</option><option>Non-active</option><option>All</option></select>
+      </div>
+      <div class="hint" style="margin-bottom:8px;">Tick assets to save only those in the PDF. Nothing ticked = you can save all.</div>
+      <div id="astList"></div>
+    </div>
+  </section>
+
+  <!-- ASSET ADD / EDIT SCREEN (full page, same look as the app's Add / Edit tab) -->
+  <div id="astFormCard" style="display:none;">
+    <div class="card">
+      <h2 class="section-title" id="astFormTitle">Add Asset</h2>
+
+      <div class="ast-sec">Basic Details</div>
+      <label>Asset Type</label>
+      <div class="inline-row" style="margin-bottom:12px;">
+        <div class="custom-select-wrap" id="astTypeWrap" style="margin-bottom:0;width:100%;"><div style="position:relative;">
+          <input type="text" id="aType" class="select-input" placeholder="Type to search or add..." autocomplete="off" oninput="astTypeInput()" onclick="astTypeInput()" onfocus="astTypeInput()">
+          <span class="dropdown-arrow" onclick="astTypeToggle(event)">▼</span></div>
+          <div id="astTypeDropdown" class="dropdown-menu"></div></div>
+        <button type="button" class="btn btn-outline" style="padding:11px 14px;white-space:nowrap;" onclick="astTmOpen()">+ Add / Edit</button>
+      </div>
+      <div class="ast-grid">
+        <div><label>Owner Name</label><input type="text" id="aOwner" placeholder="Owner name"></div>
+        <div><label>Nominee Name</label><input type="text" id="aNominee" placeholder="Nominee name"></div>
+      </div>
+      <div id="astGrpDemat" style="display:none;">
+        <div class="ast-grid">
+          <div data-f="demat"><label>Demat Provider</label><input type="text" id="aDemat" placeholder="e.g. Zerodha"></div>
+          <div data-f="dematContact"><label>Contact Number</label><input type="tel" id="aDematContact" inputmode="tel"></div>
+        </div>
+      </div>
+      <label>Address</label><textarea id="aAddress" rows="3" placeholder="Full address"></textarea>
+      <div class="ast-gap"></div>
+      <label>Location</label><input type="text" id="aLocation" placeholder="Town / area">
+
+      <div id="astGrpDetails">
+        <div class="ast-sec">Details</div>
+        <div class="ast-grid">
+          <div data-f="bankName"><label id="aBankNameLabel">Bank Name</label><input type="text" id="aBankName"></div>
+          <div data-f="refNo"><label id="aRefLabel">Number</label><input type="text" id="aRef"></div>
+          <div data-f="survey"><label>Survey No</label><input type="text" id="aSurvey"></div>
+          <div data-f="plotNo"><label>Plot / Flat No</label><input type="text" id="aPlotNo"></div>
+          <div data-f="patta"><label>Patta Number</label><input type="text" id="aPatta"></div>
+          <div data-f="sqft"><label>Sqft</label><input type="text" id="aSqft" inputmode="decimal"></div>
+          <div data-f="facing"><label>Facing Direction</label><select id="aFacing"><option value="">-- Select --</option></select></div>
+          <div data-f="mobile"><label>Linked Mobile Number</label><input type="tel" id="aMobile" inputmode="tel"></div>
+        </div>
+      </div>
+
+      <div class="ast-sec">Status &amp; Notes</div>
+      <label>Status</label>
+      <select id="aStatus" onchange="astStatusChange()"><option>Active</option><option>Non-active</option></select>
+      <div id="astGrpOff" style="display:none;"><label>Short Details (why non-active)</label><input type="text" id="aOffNote" placeholder="e.g. Sold to Ravi, Mar 2025"></div>
+      <label>Notes</label><textarea id="aNotes" rows="2" placeholder="Optional notes"></textarea>
+      <div class="ast-gap"></div>
+
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary" onclick="astSaveItem()">Save Asset</button>
+        <button type="button" class="btn btn-outline" onclick="astCloseForm()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="astTypeModal" style="display:none;"><div class="modal-content">
+    <h2 class="section-title">Asset Types</h2>
+    <div id="astTmList" style="max-height:260px;overflow-y:auto;margin-bottom:10px;"></div>
+    <div class="hint" style="margin-bottom:6px;">Fields shown for this type (tick what it needs):</div>
+    <div id="astTmTicks" class="ast-grid" style="margin-bottom:10px;"></div>
+    <div class="inline-row"><input type="text" id="astTmInput" placeholder="Type name" style="flex:1;"><button type="button" class="btn btn-primary" id="astTmBtn" onclick="astTmSubmit()">Add</button></div>
+    <div class="btn-row" style="margin-top:12px;"><button type="button" class="btn btn-outline" onclick="astTmClose()">Close</button></div>
+  </div></div>
+
+  <div class="modal" id="astViewModal" style="display:none;"><div class="modal-content">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+      <h2 class="section-title" style="margin:0;">Asset Details</h2>
+      <button type="button" class="btn btn-outline" style="padding:6px 12px;" onclick="astPdfAsk('one')">📄 PDF</button>
+    </div>
+    <div id="astViewBody" style="margin:10px 0;"></div>
+    <div class="btn-row">
+      <button type="button" class="btn btn-primary" onclick="astEditCurrent()">Edit</button>
+      <button type="button" class="btn btn-danger" onclick="astDeleteCurrent()">Delete</button>
+      <button type="button" class="btn btn-outline" onclick="astCloseView()">Close</button>
+    </div>
+  </div></div>
+
+  <div class="modal" id="astPwdModal" style="display:none;"><div class="modal-content">
+    <h2 class="section-title">Confirm Password</h2>
+    <div class="hint">The PDF is a normal readable file (not encrypted). Keep it safe.</div>
+    <input type="password" id="astPwdInput" placeholder="Assets password" style="margin-top:10px;">
+    <div class="ast-err" id="astPwdErr"></div>
+    <div class="btn-row">
+      <button type="button" class="btn btn-primary" onclick="astPwdOk()">Save PDF</button>
+      <button type="button" class="btn btn-outline" onclick="astPwdCancel()">Cancel</button>
+    </div>
+  </div></div>
+
+  <div class="modal" id="astKeyModal" style="display:none;"><div class="modal-content">
+    <h2 class="section-title">Your Recovery Key</h2>
+    <div class="ast-keybox" id="astKeyText"></div>
+    <div class="hint" id="astKeyStatus"></div>
+    <div class="hint" style="margin-top:8px;">Keep a paper copy too. Without the password AND this key, Assets cannot be opened. This key stays the same after a password reset.</div>
+    <div class="btn-row" style="flex-wrap:wrap;">
+      <button type="button" class="btn btn-primary" onclick="astKeyToDrive()">☁ Save to Google Drive</button>
+      <button type="button" class="btn btn-outline" onclick="astDownloadKey()">Download file</button>
+      <button type="button" class="btn btn-outline" onclick="astKeyDone()">I have saved it</button>
+    </div>
+  </div></div>
+
   <!-- BACKUP / RESTORE TAB -->
   <section id="tab-backup" style="display:none;">
     <div class="card">
@@ -494,6 +639,8 @@
       <h2 class="section-title" style="color:var(--danger);">Reset</h2>
       <p class="hint">Permanently deletes ALL document records from this browser.</p>
       <button class="btn btn-danger" style="width:100%;" onclick="resetAllData()">Delete All Data</button>
+      <p class="hint" style="margin-top:14px;">Reset Assets: deletes the Assets data, password and Recovery Key from this device. Files in Google Drive are not touched.</p>
+      <button class="btn btn-danger" style="width:100%;" onclick="astResetAll()">Reset Assets</button>
     </div>
   </section>
 
@@ -1053,7 +1200,7 @@ function closeDropdowns() {
 }
 
 document.addEventListener("click", (e) => {
-  if (!e.target.closest("#searchWrap") && !e.target.closest("#docTypeWrap")) {
+  if (!e.target.closest("#searchWrap") && !e.target.closest("#docTypeWrap") && !e.target.closest("#astTypeWrap")) {
     closeDropdowns();
   }
 });
@@ -1123,6 +1270,9 @@ function switchTab(tab) {
   document.getElementById("tab-search").style.display = tab === "search" ? "" : "none";
   document.getElementById("tab-add").style.display = tab === "add" ? "" : "none";
   document.getElementById("tab-backup").style.display = tab === "backup" ? "" : "none";
+  document.getElementById("tab-assets").style.display = tab === "assets" ? "" : "none";
+  document.getElementById("tabAssetsBtn").classList.toggle("active", tab === "assets");
+  if (tab === "assets") astShowEntry();
   document.getElementById("tabSearchBtn").classList.toggle("active", tab === "search");
   document.getElementById("tabAddBtn").classList.toggle("active", tab === "add");
   document.getElementById("tabBackupBtn").classList.toggle("active", tab === "backup");
@@ -1811,7 +1961,7 @@ async function deleteCurrentRecord() {
 
 async function exportBackup() {
   const records = await dbGetAll();
-  const blob = new Blob([JSON.stringify({ records }, null, 2)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify({ records, assetsVault: astVaultRaw() }, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL ? URL.createObjectURL(blob) : "";
   const now = new Date();
@@ -1831,9 +1981,10 @@ function importBackup() {
     const payload = JSON.parse(e.target.result);
     if (payload.records) {
       for (const r of payload.records) await dbAdd(r);
+      const astMsg = astRestoreVault(payload.assetsVault);
       await refreshCache();
       renderAllRecordsList();
-      openInfoModal("Restore", "Data restored successfully.");
+      openInfoModal("Restore", "Data restored successfully." + astMsg);
       fileInput.value = "";
     }
   };
@@ -2083,9 +2234,9 @@ async function driveBackupNow(){
   try{
     const records=await dbGetAll();
     // Never replace the Drive file with empty data (e.g. new phone / cleared memory)
-    if(records.length===0){ empty=true; }
+    if(records.length===0 && !astVaultRaw()){ empty=true; }
     else{
-      const content=JSON.stringify({app:DRIVE_APP_NAME,year:year,exportedAt:new Date().toISOString(),records:records});
+      const content=JSON.stringify({app:DRIVE_APP_NAME,year:year,exportedAt:new Date().toISOString(),records:records,assetsVault:astVaultRaw()});
       const folderId=await driveEnsureFolder();
       await driveUploadFile(folderId,name,content);
     }
@@ -2151,6 +2302,7 @@ function driveRestoreFile(fileId,name){
 }
 async function driveApplyRestore(data){
   if(!data || !Array.isArray(data.records)){ driveShowMessage('Restore','Invalid backup file.','⚠️'); return false; }
+  const astMsg=astRestoreVault(data.assetsVault);
   const key=r=>((r.docType||'')+'||'+(r.itemName||'')).toLowerCase();
   const have=new Set((await dbGetAll()).map(key));
   let added=0, skipped=0;
@@ -2160,7 +2312,7 @@ async function driveApplyRestore(data){
     await dbAdd(copy); have.add(key(rec)); added++;
   }
   await refreshCache(); renderAllRecordsList(); updateStorageInfo();
-  driveShowMessage('Restore','Restored '+added+' document record(s)'+(skipped?(' ('+skipped+' already on this device).'):'.'),'✅');
+  driveShowMessage('Restore','Restored '+added+' document record(s)'+(skipped?(' ('+skipped+' already on this device).'):'.')+astMsg,'✅');
   return true;
 }
 /* ---- Drive restore list cleanup (isolated): removes file name + Restore button after a successful restore ---- */
@@ -2292,6 +2444,372 @@ if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     navigator.serviceWorker.register('sw.js').catch(function () {});
   });
 }
+/* ===================== ASSETS MODULE (isolated - every function is separate) =====================
+   Encrypted with AES-GCM (Web Crypto). Password and Recovery Key are two doors to one hidden master key.
+   Stored in localStorage key docHolder_assetsVault. Data is only readable after unlock (kept in memory). */
+const AST_KEY='docHolder_assetsVault', AST_TYPES_KEY='docHolder_assetTypes', AST_LOCK_MS=5*60*1000;
+const AST_DEFAULT_TYPES=['Plot','Flat','House','Shares','Locker','Bank FD','Bank RD','Insurance'];
+const AST_BUILTIN=['plot','flat','house','shares','locker','bank fd','bank rd'], AST_BANK=['bank fd','bank rd'], AST_REMOVED_KEY='docHolder_assetTypesRemoved', AST_FIELDS_KEY='docHolder_assetTypeFields';
+/* every possible optional field exists once; each type shows only the ones ticked for it */
+const AST_FKEYS=['demat','dematContact','bankName','refNo','survey','plotNo','patta','sqft','facing','mobile'];
+const AST_FIDS={demat:'aDemat',dematContact:'aDematContact',bankName:'aBankName',refNo:'aRef',survey:'aSurvey',plotNo:'aPlotNo',patta:'aPatta',sqft:'aSqft',facing:'aFacing',mobile:'aMobile'};
+const AST_FLABEL={demat:'Demat Provider',dematContact:'Contact Number',bankName:'Bank / Company Name',refNo:'Number',survey:'Survey No',plotNo:'Plot / Flat No',patta:'Patta Number',sqft:'Sqft',facing:'Facing Direction',mobile:'Linked Mobile Number'};
+const AST_FDEFAULTS={plot:['survey','plotNo','patta','sqft','facing'],flat:['survey','plotNo','patta','sqft','facing'],house:['survey','plotNo','patta','sqft','facing'],
+  shares:['demat','dematContact','refNo','mobile'],locker:['refNo','mobile'],'bank fd':['bankName','refNo'],'bank rd':['bankName','refNo'],insurance:['bankName','refNo','mobile']};
+function astFieldCfg(){ try{ return JSON.parse(localStorage.getItem(AST_FIELDS_KEY))||{}; }catch(e){ return {}; } }
+function astFieldsFor(type){ const t=(type||'').trim().toLowerCase(), c=astFieldCfg(); if(!t) return []; if(c[t]) return c[t]; if(AST_FDEFAULTS[t]) return AST_FDEFAULTS[t]; return AST_FKEYS.slice(); }
+function astFLabel(k,type){
+  const t=(type||'').toLowerCase();
+  if(k==='bankName') return AST_BANK.includes(t)?'Bank Name':t==='insurance'?'Company Name':'Bank / Company Name';
+  if(k==='refNo') return t==='shares'?'Stock / SIP / Demat Account No':t==='locker'?'Locker Number':t==='bank fd'?'FD Number':t==='bank rd'?'RD Number':t==='insurance'?'Policy Number':'Number';
+  return AST_FLABEL[k];
+}
+const AST_PROPERTY=['plot','flat','house'];
+const AST_FACING=['East','West','North','South','North-East','North-West','South-East','South-West'];
+let astKeySaved=false, astVault=null, astMaster=null, astMasterRaw=null, astItems=[], astTimer=null, astSelected=new Set(), astEditId=null, astViewId=null, astPdfMode='', astNewKey='';
+const astEnc=new TextEncoder(), astDec=new TextDecoder();
+
+/* ---- crypto helpers ---- */
+function astB64(buf){ let s=''; new Uint8Array(buf).forEach(b=>s+=String.fromCharCode(b)); return btoa(s); }
+function astUnb64(t){ const s=atob(t), u=new Uint8Array(s.length); for(let i=0;i<s.length;i++) u[i]=s.charCodeAt(i); return u; }
+async function astDerive(secret,salt){
+  const km=await crypto.subtle.importKey('raw',astEnc.encode(secret),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:salt,iterations:150000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function astSeal(key,bytes){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv:iv},key,bytes);
+  return astB64(iv)+'.'+astB64(ct);
+}
+async function astOpenSealed(key,text){
+  const p=text.split('.');
+  return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:astUnb64(p[0])},key,astUnb64(p[1])));
+}
+function astNormKey(k){ return (k||'').toUpperCase().replace(/[^A-Z0-9]/g,''); }
+function astMakeKey(){
+  const ab='ABCDEFGHJKLMNPQRSTUVWXYZ23456789', r=crypto.getRandomValues(new Uint8Array(16));
+  let s=''; r.forEach((b,i)=>{ s+=ab[b%ab.length]; if(i%4===3&&i<15) s+='-'; }); return s;
+}
+function astVaultRaw(){ try{ return localStorage.getItem(AST_KEY)||null; }catch(e){ return null; } }
+function astLoadVault(){ const t=astVaultRaw(); try{ astVault=t?JSON.parse(t):null; }catch(e){ astVault=null; } }
+async function astPersist(){
+  astVault.data=await astSeal(astMaster,astEnc.encode(JSON.stringify(astItems)));
+  localStorage.setItem(AST_KEY,JSON.stringify(astVault));
+}
+async function astUnlockWith(master){
+  astMasterRaw=master;
+  astMaster=await crypto.subtle.importKey('raw',master,'AES-GCM',false,['encrypt','decrypt']);
+  astItems=astVault.data?JSON.parse(astDec.decode(await astOpenSealed(astMaster,astVault.data))):[];
+}
+
+/* ---- entry / lock screens ---- */
+function astShowEntry(){
+  if(astMaster){ astShowOpen(); return; }
+  if(!window.crypto||!crypto.subtle){ document.getElementById('astLockCard').innerHTML='<h2 class="section-title">Assets</h2><div class="ast-err">Secure storage is not supported in this browser. Please use Chrome.</div>'; astShowLockCard(); return; }
+  astLoadVault(); astRenderLock(astVault?'unlock':'setup','');
+}
+function astShowLockCard(){ document.getElementById('astLockCard').style.display=''; document.getElementById('astOpenCard').style.display='none'; }
+function astRenderLock(mode,msg){
+  let h='<h2 class="section-title">🔒 Assets</h2>';
+  if(mode==='setup'){
+    h+='<div class="hint">First time: set a password for Assets. You will get a Recovery Key for emergencies.</div>'+
+       '<label>New Password (min 6)</label><input type="password" id="astPw">'+
+       '<label>Confirm Password</label><input type="password" id="astPw2">'+
+       '<div class="ast-err">'+escapeHtml(msg)+'</div><button type="button" class="btn btn-primary" onclick="astDoSetup()">Set Password</button>';
+  } else if(mode==='unlock'){
+    h+='<label>Password</label><input type="password" id="astPw" onkeydown="if(event.key===\'Enter\')astDoUnlock()">'+
+       '<div class="ast-err">'+escapeHtml(msg)+'</div><div class="btn-row"><button type="button" class="btn btn-primary" onclick="astDoUnlock()">Unlock</button>'+
+       '<button type="button" class="btn btn-outline" onclick="astRenderLock(\'forgot\',\'\')">Forgot password</button></div>';
+  } else {
+    h+='<div class="hint">Open your saved Recovery Key file (from Google Drive) and paste the key here.</div>'+
+       '<label>Recovery Key</label><input type="text" id="astRk" placeholder="XXXX-XXXX-XXXX-XXXX">'+
+       '<label>New Password (min 6)</label><input type="password" id="astPw">'+
+       '<label>Confirm New Password</label><input type="password" id="astPw2">'+
+       '<div class="ast-err">'+escapeHtml(msg)+'</div><div class="btn-row"><button type="button" class="btn btn-primary" onclick="astDoReset()">Reset Password</button>'+
+       '<button type="button" class="btn btn-outline" onclick="astRenderLock(\'unlock\',\'\')">Back</button></div>';
+  }
+  document.getElementById('astLockCard').innerHTML=h; astShowLockCard();
+}
+async function astDoSetup(){
+  const p=document.getElementById('astPw').value, p2=document.getElementById('astPw2').value;
+  if(p.length<6){ astRenderLock('setup','Password must be at least 6 characters.'); return; }
+  if(p!==p2){ astRenderLock('setup','Passwords do not match.'); return; }
+  try{
+    const raw=crypto.getRandomValues(new Uint8Array(32)), rk=astMakeKey();
+    const sP=crypto.getRandomValues(new Uint8Array(16)), sR=crypto.getRandomValues(new Uint8Array(16));
+    astVault={v:1,saltP:astB64(sP),saltR:astB64(sR),
+      wrapP:await astSeal(await astDerive(p,sP),raw), wrapR:await astSeal(await astDerive(astNormKey(rk),sR),raw), data:''};
+    await astUnlockWith(raw); await astPersist();
+    astNewKey=rk; astKeySaved=false;
+    document.getElementById('astKeyText').textContent=rk; document.getElementById('astKeyModal').style.display='flex'; astKeyFlow();
+  }catch(e){ astRenderLock('setup','Could not set password: '+e.message); }
+}
+function astDownloadKey(){
+  const txt='Personal Document Holder - Assets Recovery Key\r\n\r\nRecovery Key: '+astNewKey+'\r\n\r\nKeep this file in Google Drive and a paper copy. Do not share.\r\n';
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'})); a.download='Assets-Recovery-Key.txt'; a.click();
+  astKeySaved=true; astKeySay('Key file downloaded to your phone. Please also save it in your Google Drive.');
+}
+function astKeyText(){ return 'Personal Document Holder - Assets Recovery Key\r\n\r\nRecovery Key: '+astNewKey+'\r\n\r\nKeep this file in Google Drive and a paper copy. Do not share.\r\n'; }
+function astKeySay(t){ const e=document.getElementById('astKeyStatus'); if(e) e.textContent=t; }
+function astKeyFlow(){
+  if(driveIsConnected()) astKeyToDrive();
+  else astKeySay('You are not signed in to Google. Tap "Save to Google Drive" to sign in and save the key there, or tap "Download file".');
+}
+async function astDriveUploadText(folderId,name,text){
+  const existing=await driveFindFile(folderId,name);
+  if(existing){
+    await driveGoogleApi('https://www.googleapis.com/upload/drive/v3/files/'+existing.id+'?uploadType=media',{method:'PATCH',headers:{'Content-Type':'text/plain'},body:text});
+  } else {
+    const b='astkey'+Date.now();
+    const body='--'+b+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+JSON.stringify({name:name,parents:[folderId],mimeType:'text/plain'})+'\r\n--'+b+'\r\nContent-Type: text/plain\r\n\r\n'+text+'\r\n--'+b+'--';
+    await driveGoogleApi('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{method:'POST',headers:{'Content-Type':'multipart/related; boundary='+b},body:body});
+  }
+}
+async function astKeyToDrive(){
+  astKeySay('Saving the key to your Google Drive...');
+  try{
+    if(!driveIsConnected()) await driveGoogleSignIn(true);
+    if(!driveIsConnected()) throw new Error('Google sign-in was not completed.');
+    const folderId=await driveEnsureFolder();
+    await astDriveUploadText(folderId,'Assets-Recovery-Key.txt',astKeyText());
+    astKeySaved=true; astKeySay('Saved to your Google Drive, folder "ASM Backups", file Assets-Recovery-Key.txt.');
+  }catch(e){
+    astDownloadKey(); astKeySay('Could not save to Google Drive ('+driveErrText(e)+'). The key file was downloaded to your phone instead.');
+  }
+}
+function astKeyFinish(){ astNewKey=''; document.getElementById('astKeyModal').style.display='none'; astShowOpen(); }
+function astKeyDone(){
+  if(astKeySaved){ astKeyFinish(); return; }
+  openConfirmModal('Key not saved','You have not saved the Recovery Key yet. If you forget the password, Assets cannot be recovered without it. Continue anyway?',astKeyFinish);
+}
+/* ---- Reset Assets: removes data, password and key from this device (Drive files untouched) ---- */
+function astResetAll(){
+  openConfirmModal('Reset Assets','This permanently deletes ALL Assets data, the Assets password and the Recovery Key from this device. You will set a new password and get a new key next time. Files already in Google Drive are not touched. Continue?',()=>{
+    try{ localStorage.removeItem(AST_KEY); }catch(e){}
+    astLock(); astVault=null; showToast('Assets reset. Open Assets to set a new password.');
+  });
+}
+async function astDoUnlock(){
+  const p=document.getElementById('astPw').value;
+  try{
+    const raw=await astOpenSealed(await astDerive(p,astUnb64(astVault.saltP)),astVault.wrapP);
+    await astUnlockWith(raw); astShowOpen();
+  }catch(e){ astRenderLock('unlock','Wrong password.'); }
+}
+async function astDoReset(){
+  const k=astNormKey(document.getElementById('astRk').value), p=document.getElementById('astPw').value, p2=document.getElementById('astPw2').value;
+  if(p.length<6){ astRenderLock('forgot','Password must be at least 6 characters.'); return; }
+  if(p!==p2){ astRenderLock('forgot','Passwords do not match.'); return; }
+  try{
+    const raw=await astOpenSealed(await astDerive(k,astUnb64(astVault.saltR)),astVault.wrapR);
+    const sP=crypto.getRandomValues(new Uint8Array(16));
+    astVault.saltP=astB64(sP); astVault.wrapP=await astSeal(await astDerive(p,sP),raw);   // only the password door changes; Recovery Key stays the same
+    await astUnlockWith(raw); await astPersist(); showToast('Password reset'); astShowOpen();
+  }catch(e){ astRenderLock('forgot','Recovery Key is not correct.'); }
+}
+
+/* ---- lock / auto-lock (5 minutes of no use) ---- */
+function astTouch(){ if(!astMaster) return; clearTimeout(astTimer); astTimer=setTimeout(astLock,AST_LOCK_MS); }
+['click','keydown','touchstart','scroll'].forEach(ev=>document.addEventListener(ev,astTouch,true));
+function astLock(){
+  clearTimeout(astTimer); astMaster=null; astMasterRaw=null; astItems=[]; astSelected.clear();
+  ['astViewModal','astPwdModal','astTypeModal'].forEach(id=>{ document.getElementById(id).style.display='none'; }); document.getElementById('astFormCard').style.display='none';
+  if(document.getElementById('tab-assets').style.display!=='none'){ astLoadVault(); astRenderLock('unlock',''); }
+}
+function astShowOpen(){
+  document.getElementById('astLockCard').style.display='none'; document.getElementById('astFormCard').style.display='none'; document.getElementById('astOpenCard').style.display='';
+  astTouch(); astRenderList();
+}
+
+/* ---- types (same type-to-filter pattern as the rest of the app) ---- */
+function astCustomTypes(){ try{ return JSON.parse(localStorage.getItem(AST_TYPES_KEY))||[]; }catch(e){ return []; } }
+function astRemovedTypes(){ try{ return JSON.parse(localStorage.getItem(AST_REMOVED_KEY))||[]; }catch(e){ return []; } }
+function astAllTypes(){
+  const rem=astRemovedTypes().map(x=>x.toLowerCase());
+  const all=AST_DEFAULT_TYPES.filter(t=>!rem.includes(t.toLowerCase())).concat(astCustomTypes()), seen=new Set();
+  return all.filter(t=>{ const k=t.toLowerCase(); if(seen.has(k)) return false; seen.add(k); return true; });
+}
+function astTypeToggle(e){ e.stopPropagation(); const d=document.getElementById('astTypeDropdown'); if(d.style.display==='block') closeDropdowns(); else { document.getElementById('aType').focus(); astTypeInput(); } }
+function astTypeInput(){
+  const input=document.getElementById('aType'), dd=document.getElementById('astTypeDropdown'), val=input.value.trim(), low=val.toLowerCase();
+  const all=astAllTypes(), list=low?all.filter(t=>t.toLowerCase().includes(low)):all, exact=all.some(t=>t.toLowerCase()===low);
+  let h=list.map(t=>'<div class="dd-item" onclick="astTypePick(\''+escapeJs(t)+'\')"><span class="dd-name">'+escapeHtml(t)+'</span></div>').join('');
+  if(val&&!exact) h+='<div class="dd-item dd-action-item" onclick="astTypeAdd(\''+escapeJs(val)+'\')"><span class="dd-name">+ Add Type "'+escapeHtml(val)+'"</span><span class="dd-num">New</span></div>';
+  dd.innerHTML=h; dd.style.display=h?'block':'none'; document.getElementById('astTypeWrap').classList.toggle('open',!!h);
+  astApplyTypeFields();
+}
+function astTypePick(t){ document.getElementById('aType').value=t; closeDropdowns(); astApplyTypeFields(); }
+function astTypeAdd(t){
+  const c=astCustomTypes(); if(!astAllTypes().some(x=>x.toLowerCase()===t.toLowerCase())){ c.push(t); localStorage.setItem(AST_TYPES_KEY,JSON.stringify(c)); }
+  astTypePick(t); showToast('Added type "'+t+'"');
+}
+function astApplyTypeFields(){
+  const type=document.getElementById('aType').value.trim(), f=astFieldsFor(type);
+  AST_FKEYS.forEach(k=>{ const cell=document.querySelector('[data-f="'+k+'"]'); if(cell) cell.style.display=f.includes(k)?'':'none'; });
+  document.getElementById('astGrpDemat').style.display=(f.includes('demat')||f.includes('dematContact'))?'':'none';
+  document.getElementById('astGrpDetails').style.display=AST_FKEYS.some(k=>k!=='demat'&&k!=='dematContact'&&f.includes(k))?'':'none';
+  document.getElementById('aBankNameLabel').textContent=astFLabel('bankName',type); document.getElementById('aRefLabel').textContent=astFLabel('refNo',type);
+}
+function astStatusChange(){ document.getElementById('astGrpOff').style.display=document.getElementById('aStatus').value==='Non-active'?'':'none'; }
+
+/* ---- list ---- */
+function astTitle(a){ return (a.type||'Asset')+(a.location?' - '+a.location:''); }
+function astRenderList(){
+  const q=(document.getElementById('astSearch').value||'').toLowerCase(), f=document.getElementById('astStatusFilter').value;
+  const rows=astItems.filter(a=>(f==='All'||(a.status||'Active')===f)&&(!q||JSON.stringify(a).toLowerCase().includes(q)));
+  document.getElementById('astList').innerHTML=rows.length?rows.map(a=>{
+    const off=(a.status||'Active')==='Non-active';
+    return '<div class="ast-item'+(off?' off':'')+'"><input type="checkbox" '+(astSelected.has(a.id)?'checked':'')+' onchange="astToggleSel('+a.id+',this.checked)">'+
+      '<div class="ast-main" onclick="astOpenView('+a.id+')"><div class="t">'+escapeHtml(astTitle(a))+'<span class="ast-tag'+(off?' off':'')+'">'+(off?'Non-active':'Active')+'</span></div>'+
+      '<div class="s">'+escapeHtml(a.owner||'')+(a.refNo?' | '+escapeHtml(a.refNo):'')+(a.plotNo?' | '+escapeHtml(a.plotNo):'')+'</div></div></div>';
+  }).join(''):'<div class="hint">No assets to show.</div>';
+}
+function astToggleSel(id,on){ if(on) astSelected.add(id); else astSelected.delete(id); }
+
+/* ---- add / edit / delete ---- */
+function astOpenForm(item){
+  astEditId=item?item.id:null; const it=item||{status:'Active'};
+  document.getElementById('astFormTitle').textContent=item?'Edit Asset':'Add Asset';
+  const sel=document.getElementById('aFacing'); sel.innerHTML='<option value="">-- Select --</option>'+AST_FACING.map(d=>'<option>'+d+'</option>').join('');
+  const m={aType:'type',aOwner:'owner',aNominee:'nominee',aBankName:'bankName',aDemat:'demat',aDematContact:'dematContact',aLocation:'location',aAddress:'address',aSurvey:'survey',aPlotNo:'plotNo',aPatta:'patta',aSqft:'sqft',aFacing:'facing',aRef:'refNo',aMobile:'mobile',aNotes:'notes',aStatus:'status',aOffNote:'offNote'};
+  Object.keys(m).forEach(id=>{ document.getElementById(id).value=it[m[id]]||(id==='aStatus'?'Active':''); });
+  astStatusChange(); astApplyTypeFields();
+  document.getElementById('astOpenCard').style.display='none'; document.getElementById('astFormCard').style.display=''; window.scrollTo(0,0);
+}
+function astCloseForm(){ closeDropdowns(); document.getElementById('astFormCard').style.display='none'; if(astMaster) document.getElementById('astOpenCard').style.display=''; }
+async function astSaveItem(){
+  const g=id=>document.getElementById(id).value.trim();
+  const type=g('aType'); if(!type){ showToast('Select asset type'); return; }
+  const old=astEditId?astItems.find(a=>a.id===astEditId):null, vis=astFieldsFor(type);
+  const rec={type:type,owner:g('aOwner'),nominee:g('aNominee'),address:g('aAddress'),location:g('aLocation'),notes:g('aNotes'),status:g('aStatus'),offNote:g('aStatus')==='Non-active'?g('aOffNote'):''};
+  // shown fields are saved; hidden fields keep their old value only when editing the same type (so unticking never deletes data)
+  AST_FKEYS.forEach(k=>{ rec[k]=vis.includes(k)?g(AST_FIDS[k]):(old&&(old.type||'').toLowerCase()===type.toLowerCase()?(old[k]||''):''); });
+  if(old){ const i=astItems.findIndex(a=>a.id===astEditId); rec.id=astEditId; rec.created=old.created; astItems[i]=rec; }
+  else { rec.id=Date.now(); rec.created=new Date().toISOString(); astItems.push(rec); }
+  try{ await astPersist(); }catch(e){ showToast('Save failed'); return; }
+  astCloseForm(); astCloseView(); astRenderList(); showToast('Asset saved');
+}
+function astOpenView(id){
+  const a=astItems.find(x=>x.id===id); if(!a) return; astViewId=id;
+  document.getElementById('astViewBody').innerHTML=astDetailRows(a); document.getElementById('astViewModal').style.display='flex';
+}
+function astCloseView(){ astViewId=null; document.getElementById('astViewModal').style.display='none'; }
+function astEditCurrent(){ const a=astItems.find(x=>x.id===astViewId); if(a){ document.getElementById('astViewModal').style.display='none'; astOpenForm(a); } }
+function astDeleteCurrent(){
+  const id=astViewId;
+  openConfirmModal('Delete Asset','Delete this asset permanently?',async()=>{
+    astItems=astItems.filter(a=>a.id!==id); astSelected.delete(id); await astPersist(); astCloseView(); astRenderList(); showToast('Asset deleted');
+  });
+}
+function astDetailRows(a){
+  const f=astFieldsFor(a.type), rows=[['Type',a.type],['Owner',a.owner],['Nominee',a.nominee]];
+  ['demat','dematContact'].forEach(k=>{ if(f.includes(k)) rows.push([astFLabel(k,a.type),a[k]]); });
+  if(a.address) rows.push(['Address',a.address],['__gap','']);
+  rows.push(['Location',a.location]);
+  ['bankName','refNo','survey','plotNo','patta','sqft','facing','mobile'].forEach(k=>{ if(f.includes(k)) rows.push([astFLabel(k,a.type),a[k]]); });
+  if(a.notes) rows.push(['Notes',a.notes],['__gap','']);
+  rows.push(['Status',a.status||'Active']); if(a.status==='Non-active') rows.push(['Short Details',a.offNote]);
+  return rows.filter(r=>r[1]||r[0]==='__gap').map(r=>r[0]==='__gap'?'<div style="height:14px"></div>':'<div class="ast-row"><b>'+escapeHtml(r[0])+'</b><span style="white-space:pre-wrap;">'+escapeHtml(String(r[1]))+'</span></div>').join('');
+}
+
+/* ---- asset type manager (Add / Edit / Delete + field ticks; delete blocked when assigned) ---- */
+let astTmEditing=null, astTmTicks=new Set();
+function astTmCount(name){ return astItems.filter(a=>(a.type||'').toLowerCase()===name.toLowerCase()).length; }
+function astTmReset(){ astTmEditing=null; astTmTicks=new Set(); document.getElementById('astTmInput').value=''; document.getElementById('astTmBtn').textContent='Add'; astTmRenderTicks(); }
+function astTmRenderTicks(){
+  document.getElementById('astTmTicks').innerHTML=AST_FKEYS.map(k=>'<div><label style="display:flex;gap:8px;align-items:center;margin:4px 0;"><input type="checkbox" style="width:auto;" '+(astTmTicks.has(k)?'checked':'')+' onchange="astTmTick(\''+k+'\',this.checked)">'+escapeHtml(AST_FLABEL[k])+'</label></div>').join('');
+}
+function astTmTick(k,on){ if(on) astTmTicks.add(k); else astTmTicks.delete(k); }
+function astTmOpen(){ closeDropdowns(); astTmReset(); astTmRender(); document.getElementById('astTypeModal').style.display='flex'; }
+function astTmClose(){ document.getElementById('astTypeModal').style.display='none'; astApplyTypeFields(); }
+function astTmRender(){
+  document.getElementById('astTmList').innerHTML=astAllTypes().map((t,i)=>{
+    const n=astTmCount(t);
+    return '<div class="ast-row"><span style="flex:1;">'+escapeHtml(t)+(n?' <small style="color:var(--muted);">('+n+')</small>':'')+'</span>'+
+      '<button type="button" class="btn btn-outline" style="padding:5px 10px;font-size:.8rem;" onclick="astTmEdit('+i+')">Edit</button>'+
+      '<button type="button" class="btn btn-danger" style="padding:5px 10px;font-size:.8rem;" onclick="astTmDelete('+i+')">Delete</button></div>';
+  }).join('');
+}
+function astTmEdit(i){
+  astTmEditing=astAllTypes()[i]; astTmTicks=new Set(astFieldsFor(astTmEditing));
+  const inp=document.getElementById('astTmInput'); inp.value=astTmEditing; document.getElementById('astTmBtn').textContent='Save'; astTmRenderTicks(); inp.focus();
+}
+function astTmStore(custom,removed,cfg){ localStorage.setItem(AST_TYPES_KEY,JSON.stringify(custom)); localStorage.setItem(AST_REMOVED_KEY,JSON.stringify(removed)); localStorage.setItem(AST_FIELDS_KEY,JSON.stringify(cfg)); }
+async function astTmSubmit(){
+  const v=document.getElementById('astTmInput').value.trim(); if(!v) return;
+  const low=v.toLowerCase(), all=astAllTypes(), custom=astCustomTypes(), removed=astRemovedTypes(), cfg=astFieldCfg();
+  const ticks=AST_FKEYS.filter(k=>astTmTicks.has(k));
+  if(astTmEditing===null){
+    if(all.some(t=>t.toLowerCase()===low)){ showToast('Type already exists'); return; }
+    custom.push(v); cfg[low]=ticks; astTmStore(custom,removed,cfg); showToast('Type added');
+  } else {
+    const old=astTmEditing, oldLow=old.toLowerCase();
+    if(low!==oldLow&&all.some(t=>t.toLowerCase()===low)){ showToast('Type already exists'); return; }
+    const ci=custom.findIndex(t=>t.toLowerCase()===oldLow);
+    if(ci>=0) custom[ci]=v; else if(low!==oldLow){ removed.push(old); custom.push(v); }   // renaming a built-in hides the old name and adds the new one
+    if(low!==oldLow) delete cfg[oldLow];
+    cfg[low]=ticks; astTmStore(custom,removed,cfg);
+    let changed=false; astItems.forEach(a=>{ if((a.type||'').toLowerCase()===oldLow){ a.type=v; changed=true; } });
+    if(changed) await astPersist();
+    astRenderList(); showToast('Type updated');
+  }
+  astTmReset(); astTmRender();
+}
+function astTmDelete(i){
+  const name=astAllTypes()[i], n=astTmCount(name);
+  if(n){ openInfoModal('Cannot delete','"'+name+'" is assigned to '+n+' asset(s). Change or delete those assets first.'); return; }
+  openConfirmModal('Delete Type','Delete type "'+name+'"?',()=>{
+    const custom=astCustomTypes(), removed=astRemovedTypes(), cfg=astFieldCfg(), low=name.toLowerCase(), ci=custom.findIndex(t=>t.toLowerCase()===low);
+    if(ci>=0) custom.splice(ci,1); else removed.push(name);
+    delete cfg[low]; astTmStore(custom,removed,cfg); astTmReset(); astTmRender(); showToast('Type deleted');
+  });
+}
+
+function astPdfClick(){
+  if(!astItems.length){ showToast('No assets to save'); return; }
+  if(astSelected.size){ astPdfAsk('selected'); return; }
+  openConfirmModal('Save PDF','No asset is ticked. Save PDF of all assets?',()=>astPdfAsk('all'));
+}
+/* ---- PDF (print window, file name = Document Holder Property YYYY) ---- */
+function astPdfAsk(mode){
+  if(mode==='selected'&&!astSelected.size){ showToast('Tick the assets first'); return; }
+  astPdfMode=mode; document.getElementById('astPwdInput').value=''; document.getElementById('astPwdErr').textContent='';
+  document.getElementById('astPwdModal').style.display='flex';
+}
+function astPwdCancel(){ document.getElementById('astPwdModal').style.display='none'; }
+async function astPwdOk(){
+  try{ await astOpenSealed(await astDerive(document.getElementById('astPwdInput').value,astUnb64(astVault.saltP)),astVault.wrapP); }
+  catch(e){ document.getElementById('astPwdErr').textContent='Wrong password.'; return; }
+  astPwdCancel(); astMakePdf();
+}
+function astMakePdf(){
+  let list=astItems;
+  if(astPdfMode==='selected') list=astItems.filter(a=>astSelected.has(a.id));
+  if(astPdfMode==='one') list=astItems.filter(a=>a.id===astViewId);
+  const title='Document Holder Property '+new Date().getFullYear();
+  const body=list.map(a=>'<div class="b"><h3>'+escapeHtml(astTitle(a))+'</h3>'+astDetailRows(a)+'</div>').join('');
+  const w=window.open('','_blank'); if(!w){ showToast('Allow pop-ups to save PDF'); return; }
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+title+'</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#222}h1{font-size:18px;color:#1f3c5e}h3{margin:0 0 6px;font-size:15px}.b{border:1px solid #ccc;border-radius:8px;padding:10px;margin-bottom:12px;page-break-inside:avoid}.ast-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px}.ast-row b{min-width:130px;color:#555}</style></head><body><h1>'+title+'</h1>'+body+'</body></html>');
+  w.document.close(); w.focus(); setTimeout(()=>{ w.print(); },400);
+}
+
+/* ---- backup helper: put the encrypted vault into backups; restore only if this device has none ---- */
+function astRestoreVault(v){
+  if(!v||typeof v!=='string') return '';
+  if(astVaultRaw()) return ' (Assets already set on this device, kept as is.)';
+  try{ localStorage.setItem(AST_KEY,v); astLoadVault(); return ' Assets restored (use your old Assets password).'; }catch(e){ return ''; }
+}
+
+/* ---- Help topic for Assets (added to the app's existing Help list) ---- */
+(function astHelpInit(){
+  try{
+    const bk=HELP_TOPICS.find(t=>t.title==='Backup / Restore');
+    if(bk) bk.text+=' Your Assets are included in the backup and stay locked with your Assets password and Recovery Key, so Google cannot read them either. On a new phone, restore first, then open Assets with your old password.';
+    const i=HELP_TOPICS.findIndex(t=>t.title==='Search / View');
+    HELP_TOPICS.splice(i+1,0,{icon:'🏠',title:'Assets',text:'Keep details of what you own: Plot, Flat, House, Shares, Locker, Bank FD, Bank RD, Insurance, or any type you add. Open the Assets tab and set a password the first time. The app saves the Recovery Key file to your Google Drive (it asks you to sign in if needed, or downloads it) - keep a paper copy too. Without the password and the key, Assets cannot be opened. Use + Add Asset, tap an asset to view, edit or delete it. In + Add / Edit beside Asset Type you can rename or delete types (a type used by any asset cannot be deleted) and tick the fields each type should show. Mark an asset Non-active with short details when it is sold or closed. Assets lock by themselves after 5 minutes of no use, or press Lock. The PDF button at the top right saves the ticked assets; if none are ticked it asks to save all. Forgot the password? Tap Forgot password and paste the Recovery Key. To start fresh, use Reset Assets in Backup / Restore: it deletes the Assets data, password and key.'});
+  }catch(e){}
+})();
+
 </script>
 </body>
 </html>
