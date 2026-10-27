@@ -1031,6 +1031,12 @@ function grpSelectType(i) {
   grpRenderList(name, recs, false);
 }
 
+function grpResetSearch() {
+  const box = document.getElementById("searchBox");
+  if (box) box.value = "";
+  closeDropdowns();
+}
+
 function grpClearList() {
   grpListOpen = false;
   grpListQuery = "";
@@ -1439,6 +1445,7 @@ function switchTab(tab) {
   document.getElementById("tabBackupBtn").classList.toggle("active", tab === "backup");
   if (tab === "search") {
     closeRecordDetail();
+    grpResetSearch();
     renderAllRecordsList();
   }
   if (tab === "backup") updateStorageInfo();
