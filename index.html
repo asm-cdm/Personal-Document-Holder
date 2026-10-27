@@ -159,6 +159,9 @@
     gap: 8px;
   }
   .dd-item:hover, .dd-item:active{ background:var(--brand-light); }
+  .dd-item.dd-active{ background:var(--brand-light); outline:2px solid var(--brand-dark); outline-offset:-2px; }
+  .grp-head{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin:10px 0 6px; }
+  .grp-head h3{ font-size:0.95rem; color:var(--brand-dark); margin:0; }
   .dd-item .dd-info { flex:1; overflow:hidden; }
   .dd-item .dd-name{ font-weight:600; color:var(--brand-dark); font-size: 0.95rem; display:block; text-overflow:ellipsis; overflow:hidden; white-space:nowrap; }
   .dd-item .dd-num{ font-size:.8rem; color:var(--muted); }
@@ -904,6 +907,32 @@ function toggleSearchDropdown(e) {
   }
 }
 
+/* ===== GROUPED SEARCH MODULE (isolated) ===== */
+let grpKeys = [];
+let grpListOpen = false;
+let grpListQuery = "";
+let grpActiveIdx = -1;
+
+function grpTypeKey(r) { return (r.docType || "").trim().toLowerCase(); }
+
+function grpMatchRecords(terms) {
+  return allRecordsCache.filter(r => {
+    const linkText = (r.links || []).map(l => (l.note || '') + ' ' + (l.url || '')).join(' ');
+    const text = `${r.docType || ''} ${r.itemName || ''} ${r.remarks || ''} ${linkText}`.toLowerCase();
+    return terms.every(term => text.includes(term));
+  });
+}
+
+function grpRowHtml(onclick, title, count) {
+  return `
+    <div class="dd-item" onclick="${onclick}">
+      <div class="dd-info">
+        <span class="dd-name">📁 ${title} (${count})</span>
+        <span class="dd-num">${count} record(s)</span>
+      </div>
+    </div>`;
+}
+
 function handleSearchInput() {
   const searchBox = document.getElementById("searchBox");
   const searchDropdown = document.getElementById("searchDropdown");
@@ -911,25 +940,31 @@ function handleSearchInput() {
 
   const query = searchBox.value.trim();
   const lowerQuery = query.toLowerCase();
-
   const terms = lowerQuery ? lowerQuery.split(/\s+/) : [];
-  const matches = allRecordsCache.filter(r => {
-    if (!lowerQuery) return true;
-    const linkText = (r.links || []).map(l => (l.note || '') + ' ' + (l.url || '')).join(' ');
-    const text = `${r.docType || ''} ${r.itemName || ''} ${r.remarks || ''} ${linkText}`.toLowerCase();
-    return terms.every(term => text.includes(term));
-  });
+  grpActiveIdx = -1;
+  grpKeys = [];
+  if (grpListOpen && lowerQuery !== grpListQuery) grpClearList();
+  let html = "";
 
-  let html = matches.map(r => `
-    <div class="dd-item" onclick="selectSearchResult(${r.id})">
-      <div class="dd-info">
-        <span class="dd-name">${escapeHtml(r.docType)} - ${escapeHtml(r.itemName)}</span>
-        <span class="dd-num">${r.files ? r.files.length : 0} file(s)${(r.links && r.links.length) ? " · " + r.links.length + " link(s)" : ""}</span>
-      </div>
-    </div>
-  `).join("");
-
-  if (query) {
+  if (!terms.length) {
+    // nothing typed: one row per Document Type
+    const typeMap = {};
+    allRecordsCache.forEach(r => {
+      const k = grpTypeKey(r);
+      if (!k) return;
+      if (!typeMap[k]) typeMap[k] = { name: r.docType.trim(), count: 0 };
+      typeMap[k].count++;
+    });
+    grpKeys = Object.keys(typeMap);
+    html = grpKeys.map((k, i) => grpRowHtml(`grpSelectType(${i})`, escapeHtml(typeMap[k].name), typeMap[k].count)).join("");
+  } else {
+    // something typed: ONE row named after what was typed, with count of all matching records
+    const matches = grpMatchRecords(terms);
+    if (matches.length) {
+      const exact = matches.find(r => grpTypeKey(r) === lowerQuery);
+      const title = exact ? exact.docType.trim() : query;
+      html = grpRowHtml("grpSelectMatches()", escapeHtml(title), matches.length);
+    }
     html += `
       <div class="dd-item dd-action-item" onclick="addNewFromSearch('${escapeJs(query)}')">
         <div class="dd-info">
@@ -948,6 +983,110 @@ function handleSearchInput() {
     closeDropdowns();
   }
 }
+
+function grpRenderList(title, recs, showType) {
+  const wrap = document.getElementById("allRecordsList");
+  grpListOpen = true;
+  grpListQuery = document.getElementById("searchBox").value.trim().toLowerCase();
+  wrap.innerHTML = `
+    <div class="grp-head">
+      <h3>📁 ${escapeHtml(title)} (${recs.length})</h3>
+      <div style="display:flex; gap:6px;">
+        <button type="button" class="btn btn-outline btn-sm" onclick="grpShowAll()">Show all</button>
+        <button type="button" class="btn btn-danger btn-sm" onclick="grpClose()">Close</button>
+      </div>
+    </div>` +
+    recs.map(r => `
+    <div class="record-list-item" onclick="openRecordDetail(${r.id})">
+      <div style="flex:1;">
+        <span class="rli-name">${showType ? escapeHtml(r.docType) + " - " : ""}${escapeHtml(r.itemName)}</span>
+        <span class="rli-num" style="display:block;">${r.files ? r.files.length : 0} file(s)${(r.links && r.links.length) ? " · " + r.links.length + " link(s)" : ""}</span>
+      </div>
+    </div>
+  `).join("");
+}
+
+function grpSelectMatches() {
+  const query = document.getElementById("searchBox").value.trim();
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!terms.length) return;
+  closeDropdowns();
+  closeRecordDetail();
+  const recs = grpMatchRecords(terms);
+  if (!recs.length) return;
+  const sameType = recs.every(r => grpTypeKey(r) === grpTypeKey(recs[0]));
+  const exact = recs.find(r => grpTypeKey(r) === query.toLowerCase());
+  grpRenderList(exact ? exact.docType.trim() : query, recs, !sameType);
+}
+
+function grpSelectType(i) {
+  const key = grpKeys[i];
+  if (key === undefined) return;
+  closeDropdowns();
+  closeRecordDetail();
+  const recs = allRecordsCache.filter(r => grpTypeKey(r) === key);
+  if (!recs.length) return;
+  const name = recs[0].docType.trim();
+  document.getElementById("searchBox").value = name;
+  grpRenderList(name, recs, false);
+}
+
+function grpClearList() {
+  grpListOpen = false;
+  grpListQuery = "";
+  document.getElementById("allRecordsList").innerHTML = "";
+}
+
+function grpClose() {
+  closeDropdowns();
+  closeRecordDetail();
+  grpClearList();
+  const box = document.getElementById("searchBox");
+  box.value = "";
+  box.focus();
+}
+
+function grpShowAll() {
+  grpListOpen = false;
+  document.getElementById("searchBox").value = "";
+  closeDropdowns();
+  renderAllRecordsList();
+}
+
+function grpSetActive(items, idx) {
+  items.forEach(el => el.classList.remove("dd-active"));
+  grpActiveIdx = idx;
+  if (idx >= 0 && items[idx]) {
+    items[idx].classList.add("dd-active");
+    items[idx].scrollIntoView({ block: "nearest" });
+  }
+}
+
+document.addEventListener("keydown", (e) => {
+  if (!e.target || e.target.id !== "searchBox") return;
+  const dd = document.getElementById("searchDropdown");
+  const open = dd.style.display === "block";
+  if (e.key === "Escape") { closeDropdowns(); return; }
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    if (!open) handleSearchInput();
+    const items = Array.from(dd.querySelectorAll(".dd-item"));
+    if (!items.length) return;
+    let idx = grpActiveIdx;
+    if (e.key === "ArrowDown") idx = (idx + 1) % items.length;
+    else idx = idx <= 0 ? items.length - 1 : idx - 1;
+    grpSetActive(items, idx);
+    return;
+  }
+  if (e.key === "Enter") {
+    e.preventDefault();
+    if (!open) return;
+    const items = Array.from(dd.querySelectorAll(".dd-item"));
+    const pick = grpActiveIdx >= 0 ? items[grpActiveIdx] : items[0];
+    if (pick) pick.click();
+  }
+});
+/* ===== END GROUPED SEARCH MODULE ===== */
 
 function addNewFromSearch(queryText) {
   closeDropdowns();
@@ -1210,21 +1349,43 @@ function selectSearchResult(id) {
   openRecordDetail(id);
 }
 
+let grpListKeys = [];
+
 function renderAllRecordsList() {
   const wrap = document.getElementById("allRecordsList");
   if (allRecordsCache.length === 0) {
     wrap.innerHTML = '<div class="empty-state">No documents added yet. Use "Add / Edit" to create records.</div>';
     return;
   }
+  grpListOpen = false;
+  // one row per Document Type, with record count
+  const typeMap = {};
+  allRecordsCache.forEach(r => {
+    const k = grpTypeKey(r);
+    if (!typeMap[k]) typeMap[k] = { name: (r.docType || "").trim() || "Other", count: 0 };
+    typeMap[k].count++;
+  });
+  grpListKeys = Object.keys(typeMap);
   wrap.innerHTML = '<h3 style="font-size:0.9rem; color:var(--muted); margin:10px 0 6px;">All Saved Records</h3>' +
-  allRecordsCache.map(r => `
-    <div class="record-list-item" onclick="openRecordDetail(${r.id})">
+  grpListKeys.map((k, i) => `
+    <div class="record-list-item" onclick="grpOpenListType(${i})">
       <div style="flex:1;">
-        <span class="rli-name">${escapeHtml(r.docType)} - ${escapeHtml(r.itemName)}</span>
-        <span class="rli-num" style="display:block;">${r.files ? r.files.length : 0} file(s)</span>
+        <span class="rli-name">📁 ${escapeHtml(typeMap[k].name)} (${typeMap[k].count})</span>
+        <span class="rli-num" style="display:block;">${typeMap[k].count} record(s)</span>
       </div>
     </div>
   `).join("");
+}
+
+function grpOpenListType(i) {
+  const key = grpListKeys[i];
+  if (key === undefined) return;
+  closeRecordDetail();
+  const recs = allRecordsCache.filter(r => grpTypeKey(r) === key);
+  if (!recs.length) return;
+  const name = (recs[0].docType || "").trim() || "Other";
+  document.getElementById("searchBox").value = key ? name : "";
+  grpRenderList(name, recs, false);
 }
 
 function validateDuplicate() {
