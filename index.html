@@ -1659,7 +1659,7 @@ function guessMimeFromName(name) {
 }
 
 /* ---- Audio module (isolated): helpers, size limit, in-app player ---- */
-const AUDIO_MAX_BYTES = 5 * 1024 * 1024;
+const AUDIO_MAX_BYTES = 25 * 1024 * 1024;
 function fileIsAudio(f) {
   if (!f) return false;
   if (f.type && f.type.startsWith("audio/")) return true;
@@ -1913,7 +1913,7 @@ async function handleFileSelect(e) {
     return;
   }
   for (const f of files) {
-    if (audioTooBig(f)) { showToast("File too large (audio max 5 MB): " + f.name); continue; }
+    if (audioTooBig(f)) { showToast("Audio too large (" + (f.size / 1048576).toFixed(1) + " MB). Max " + (AUDIO_MAX_BYTES / 1048576) + " MB: " + f.name); continue; }
     const base64 = await fileToBase64(f);
     pendingNewFiles.push({ name: f.name, type: f.type || guessMimeFromName(f.name), data: base64 });
   }
