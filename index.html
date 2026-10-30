@@ -47,20 +47,25 @@
   
   nav.tabs{
     display:flex;
-    gap:6px;
+    flex-wrap:nowrap;
+    gap:4px;
     max-width:720px;
     margin:14px auto 0;
     padding:0 12px;
   }
   nav.tabs button{
-    flex:1;
-    padding:10px 6px;
+    flex:1 1 0;
+    min-width:0;
+    padding:8px 2px;
+    line-height:1.2;
+    white-space:normal;
+    word-break:keep-all;
     border:none;
     border-radius:10px;
     background:var(--card);
     color:var(--brand-dark);
     font-weight:600;
-    font-size:.85rem;
+    font-size:clamp(.66rem,2.9vw,.85rem);
     cursor:pointer;
     border:1px solid var(--border);
     transition:.15s;
@@ -360,6 +365,7 @@
   <button id="tabAddBtn" onclick="openAddTab()">Add / Edit</button>
   <button id="tabSearchBtn" class="active" onclick="switchTab('search')">Search / View</button>
   <button id="tabAssetsBtn" onclick="switchTab('assets')">🔒 Assets</button>
+  <button id="tabContactsBtn" onclick="switchTab('contacts')">📇 Contacts</button>
   <button id="tabBackupBtn" onclick="switchTab('backup')">Backup / Restore</button>
 </nav>
 
@@ -415,6 +421,43 @@
         <button class="btn btn-outline" onclick="editCurrentRecord()">Edit Details</button>
         <button class="btn btn-danger" onclick="deleteCurrentRecord()">Delete Record</button>
         <button class="btn btn-secondary" onclick="closeRecordDetail()">Close</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACTS TAB -->
+  <section id="tab-contacts" style="display:none;">
+    <div class="card" id="cntHome">
+      <h2 class="section-title">Contacts</h2>
+      <div class="inline-row" style="margin-bottom:8px;">
+        <div class="custom-select-wrap cnt-wrap" id="cntSearchWrap" style="margin-bottom:0;width:100%;"><div style="position:relative;">
+          <input type="text" id="cntSearch" class="select-input" style="border-radius:24px;padding:13px 40px 13px 16px;box-shadow:0 2px 6px rgba(0,0,0,.08);" placeholder="Search name, group or number..." autocomplete="off" oninput="cntSearchInput()" onclick="cntSearchInput()" onfocus="cntSearchInput()" onkeydown="cntKeyNav(event,'cntSearchDD')">
+          <span class="dropdown-arrow" onclick="cntSearchToggle(event)">▼</span></div>
+          <div id="cntSearchDD" class="dropdown-menu"></div></div>
+        <button type="button" class="btn btn-primary" style="padding:12px 14px;white-space:nowrap;" onclick="cntOpenForm()">+ Add</button>
+        <button type="button" class="btn btn-outline" style="padding:12px 10px;white-space:nowrap;" onclick="cntExportExcel()">⬇ Excel</button>
+      </div>
+      <div class="hint" id="cntCount"></div>
+    </div>
+    <div class="card" id="cntDetail" style="display:none;"></div>
+    <div class="card" id="cntFormCard" style="display:none;">
+      <h2 class="section-title" id="cntFormTitle">Add Contact</h2>
+      <input type="hidden" id="cntEditId">
+      <label>Group</label>
+      <div class="custom-select-wrap cnt-wrap" id="cntGrpWrap" style="margin-bottom:12px;"><div style="position:relative;">
+        <input type="text" id="cntGroup" class="select-input" placeholder="Type group (Painter, Plumber...)" autocomplete="off" oninput="cntGrpInput()" onclick="cntGrpInput()" onfocus="cntGrpInput()" onkeydown="cntKeyNav(event,'cntGrpDD')">
+        <span class="dropdown-arrow" onclick="cntGrpToggle(event)">▼</span></div>
+        <div id="cntGrpDD" class="dropdown-menu"></div></div>
+      <label for="cntName">Name</label>
+      <input type="text" id="cntName" autocomplete="off" placeholder="Name">
+      <label style="margin-top:10px;display:block;">Phone number(s)</label>
+      <div id="cntPhones"></div>
+      <button type="button" class="btn btn-outline btn-sm" style="margin:6px 0 12px;" onclick="cntAddPhoneRow('')">+ Add another number</button>
+      <label for="cntRef">Reference</label>
+      <input type="text" id="cntRef" autocomplete="off" placeholder="Referred by / area / notes">
+      <div class="btn-row" style="margin-top:14px;">
+        <button type="button" class="btn btn-primary" onclick="cntSave()">Save</button>
+        <button type="button" class="btn btn-secondary" onclick="cntShowHome()">Cancel</button>
       </div>
     </div>
   </section>
@@ -1351,7 +1394,7 @@ function closeDropdowns() {
 }
 
 document.addEventListener("click", (e) => {
-  if (!e.target.closest("#searchWrap") && !e.target.closest("#docTypeWrap") && !e.target.closest("#astTypeWrap")) {
+  if (!e.target.closest("#searchWrap") && !e.target.closest("#docTypeWrap") && !e.target.closest("#astTypeWrap") && !e.target.closest(".cnt-wrap")) {
     closeDropdowns();
   }
 });
@@ -1446,6 +1489,9 @@ function switchTab(tab) {
   document.getElementById("tab-assets").style.display = tab === "assets" ? "" : "none";
   document.getElementById("tabAssetsBtn").classList.toggle("active", tab === "assets");
   if (tab === "assets") astShowEntry();
+  document.getElementById("tab-contacts").style.display = tab === "contacts" ? "" : "none";
+  document.getElementById("tabContactsBtn").classList.toggle("active", tab === "contacts");
+  if (tab === "contacts") cntShowHome();
   document.getElementById("tabSearchBtn").classList.toggle("active", tab === "search");
   document.getElementById("tabAddBtn").classList.toggle("active", tab === "add");
   document.getElementById("tabBackupBtn").classList.toggle("active", tab === "backup");
@@ -1946,6 +1992,291 @@ function fallbackWhatsAppTextShare(text) {
 }
 
 
+/* ===================== CONTACTS MODULE (isolated) =====================
+   Contact = { id, group, name, phones:[...], reference }. Stored in localStorage key docHolder_contacts
+   and included in Backup / Restore (local file + Google Drive). */
+const CNT_KEY = 'docHolder_contacts';
+let cntList = [];
+let cntKeys = [];
+try { cntList = JSON.parse(localStorage.getItem(CNT_KEY)) || []; } catch (e) { cntList = []; }
+function cntStore() { localStorage.setItem(CNT_KEY, JSON.stringify(cntList)); }
+function cntRaw() { return cntList; }
+function cntDigits(v) { return String(v || '').replace(/\D/g, ''); }
+function cntLast10(v) { return cntDigits(v).slice(-10); }
+function cntById(id) { return cntList.find(c => c.id === id); }
+function cntGroups() {
+  const seen = {}, out = [];
+  cntList.forEach(c => { const g = (c.group || '').trim(), k = g.toLowerCase(); if (g && !seen[k]) { seen[k] = 1; out.push(g); } });
+  return out.sort((a, b) => a.localeCompare(b));
+}
+function cntMatch(c, terms) {
+  const text = ((c.group || '') + ' ' + (c.name || '') + ' ' + (c.phones || []).join(' ') + ' ' + (c.reference || '')).toLowerCase();
+  const dig = (c.phones || []).map(cntDigits).join(' ');
+  return terms.every(t => text.includes(t) || (/^\d+$/.test(t) && dig.includes(t)));
+}
+/* ---- shared Up/Down/Enter navigation for the type-to-filter dropdowns ---- */
+function cntKeyNav(e, ddId) {
+  const dd = document.getElementById(ddId);
+  if (!dd) return;
+  if (e.key === 'Escape') { closeDropdowns(); return; }
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') return;
+  if (dd.style.display !== 'block') { if (e.key !== 'Enter') { e.target.dispatchEvent(new Event('input')); } else return; }
+  const items = Array.from(dd.querySelectorAll('.dd-item'));
+  if (!items.length) return;
+  let idx = items.findIndex(i => i.classList.contains('dd-active'));
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (idx < 0 && items.length === 1) idx = 0;
+    if (idx >= 0) items[idx].click();
+    return;
+  }
+  e.preventDefault();
+  if (idx >= 0) items[idx].classList.remove('dd-active');
+  idx = e.key === 'ArrowDown' ? (idx + 1) % items.length : (idx <= 0 ? items.length - 1 : idx - 1);
+  items[idx].classList.add('dd-active');
+  items[idx].scrollIntoView({ block: 'nearest' });
+}
+/* ---- search ---- */
+function cntSearchInput() {
+  const dd = document.getElementById('cntSearchDD');
+  const terms = document.getElementById('cntSearch').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const res = cntList.filter(c => cntMatch(c, terms)).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const shown = res.slice(0, 60);
+  let html = shown.map(c => `
+    <div class="dd-item" onclick="cntSelect('${c.id}')">
+      <div class="dd-info">
+        <span class="dd-name">${escapeHtml(c.name)}</span>
+        <span class="dd-num">${escapeHtml((c.phones || [])[0] || '')}${(c.phones || []).length > 1 ? ' (+' + (c.phones.length - 1) + ')' : ''}${c.group ? ' · ' + escapeHtml(c.group) : ''}</span>
+      </div>
+    </div>`).join('');
+  if (res.length > shown.length) html += `<div class="dd-item" style="cursor:default;"><span class="dd-num">Showing ${shown.length} of ${res.length}. Type more to narrow.</span></div>`;
+  if (!res.length) html = `<div class="dd-item" style="cursor:default;"><span class="dd-num">${cntList.length ? 'No contact found' : 'No contacts yet. Tap + Add.'}</span></div>`;
+  dd.innerHTML = html;
+  dd.style.display = 'block';
+  document.getElementById('cntCount').textContent = terms.length ? res.length + ' found' : cntList.length + ' contact(s)';
+}
+function cntSearchToggle(e) {
+  e.stopPropagation();
+  const dd = document.getElementById('cntSearchDD');
+  if (dd.style.display === 'block') closeDropdowns(); else { document.getElementById('cntSearch').focus(); cntSearchInput(); }
+}
+/* ---- screens ---- */
+function cntShowHome() {
+  document.getElementById('cntHome').style.display = '';
+  document.getElementById('cntDetail').style.display = 'none';
+  document.getElementById('cntFormCard').style.display = 'none';
+  document.getElementById('cntSearch').value = '';
+  document.getElementById('cntCount').textContent = cntList.length + ' contact(s)';
+  closeDropdowns();
+}
+function cntWaNumber(v) {
+  let d = cntDigits(v);
+  if (d.length === 11 && d[0] === '0') d = d.slice(1);
+  if (d.length === 10) d = '91' + d;
+  return d;
+}
+function cntSelect(id) {
+  const c = cntById(id);
+  if (!c) return;
+  closeDropdowns();
+  document.getElementById('cntSearch').value = '';
+  const phones = (c.phones || []).map(ph => `
+    <div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid #f0f0f0;">
+      <span style="flex:1;font-size:1rem;word-break:break-all;">${escapeHtml(ph)}</span>
+      <a class="btn btn-sm btn-primary" style="text-decoration:none;" href="tel:${cntDigits(ph) ? (ph.trim()[0] === '+' ? '+' : '') + cntDigits(ph) : ''}">📞 Call</a>
+      <a class="btn btn-sm" style="text-decoration:none;background:var(--accent);color:#fff;" target="_blank" rel="noopener" href="https://wa.me/${cntWaNumber(ph)}">WhatsApp</a>
+    </div>`).join('');
+  const d = document.getElementById('cntDetail');
+  d.innerHTML = `
+    <h3 style="margin:0 0 4px;color:var(--brand-dark);word-break:break-word;">${escapeHtml(c.name)}</h3>
+    ${c.group ? `<div class="hint" style="margin:0 0 8px;">Group: ${escapeHtml(c.group)}</div>` : ''}
+    ${phones}
+    ${c.reference ? `<div style="margin-top:10px;font-size:.9rem;"><span style="color:var(--muted);font-weight:600;font-size:.8rem;">Reference</span><br>${escapeHtml(c.reference)}</div>` : ''}
+    <div class="btn-row" style="margin-top:14px;">
+      <button type="button" class="btn btn-outline" onclick="cntOpenForm('${c.id}')">Edit</button>
+      <button type="button" class="btn btn-danger" onclick="cntDelete('${c.id}')">Delete</button>
+      <button type="button" class="btn btn-secondary" onclick="cntShowHome()">Close</button>
+    </div>`;
+  document.getElementById('cntHome').style.display = '';
+  document.getElementById('cntFormCard').style.display = 'none';
+  d.style.display = '';
+  document.getElementById('cntCount').textContent = '';
+}
+/* ---- add / edit form ---- */
+function cntAddPhoneRow(val) {
+  const box = document.getElementById('cntPhones');
+  const row = document.createElement('div');
+  row.className = 'inline-row';
+  row.style.marginBottom = '6px';
+  row.innerHTML = `<input type="tel" class="cntPhoneIn" inputmode="tel" autocomplete="off" placeholder="Phone number" style="flex:1;"><button type="button" class="btn btn-danger btn-sm" onclick="cntRemovePhoneRow(this)">✕</button>`;
+  row.querySelector('input').value = val || '';
+  box.appendChild(row);
+}
+function cntRemovePhoneRow(btn) {
+  const box = document.getElementById('cntPhones');
+  if (box.children.length <= 1) { btn.parentNode.querySelector('input').value = ''; return; }
+  btn.parentNode.remove();
+}
+function cntOpenForm(id) {
+  const c = id ? cntById(id) : null;
+  document.getElementById('cntFormTitle').textContent = c ? 'Edit Contact' : 'Add Contact';
+  document.getElementById('cntEditId').value = c ? c.id : '';
+  document.getElementById('cntGroup').value = c ? (c.group || '') : '';
+  document.getElementById('cntName').value = c ? c.name : '';
+  document.getElementById('cntRef').value = c ? (c.reference || '') : '';
+  document.getElementById('cntPhones').innerHTML = '';
+  const ph = c && c.phones && c.phones.length ? c.phones : [''];
+  ph.forEach(v => cntAddPhoneRow(v));
+  document.getElementById('cntHome').style.display = 'none';
+  document.getElementById('cntDetail').style.display = 'none';
+  document.getElementById('cntFormCard').style.display = '';
+  closeDropdowns();
+  window.scrollTo(0, 0);
+}
+function cntGrpInput() {
+  const dd = document.getElementById('cntGrpDD');
+  const q = document.getElementById('cntGroup').value.trim();
+  const low = q.toLowerCase();
+  const groups = cntGroups().filter(g => !low || g.toLowerCase().includes(low));
+  let html = groups.map((g, i) => `<div class="dd-item" onclick="cntPickGroup(${i})"><div class="dd-info"><span class="dd-name">${escapeHtml(g)}</span></div></div>`).join('');
+  cntGrpShown = groups;
+  if (q && !cntGroups().some(g => g.toLowerCase() === low)) {
+    html += `<div class="dd-item dd-action-item" onclick="closeDropdowns()"><div class="dd-info"><span class="dd-name">+ New group "${escapeHtml(q)}"</span><span class="dd-num">Will be created on Save</span></div></div>`;
+  }
+  if (!html) { closeDropdowns(); return; }
+  dd.innerHTML = html;
+  dd.style.display = 'block';
+}
+let cntGrpShown = [];
+function cntPickGroup(i) {
+  document.getElementById('cntGroup').value = cntGrpShown[i] || '';
+  closeDropdowns();
+}
+function cntGrpToggle(e) {
+  e.stopPropagation();
+  const dd = document.getElementById('cntGrpDD');
+  if (dd.style.display === 'block') closeDropdowns(); else { document.getElementById('cntGroup').focus(); cntGrpInput(); }
+}
+function cntSave() {
+  const id = document.getElementById('cntEditId').value;
+  const name = document.getElementById('cntName').value.trim();
+  const phones = Array.from(document.querySelectorAll('.cntPhoneIn')).map(i => i.value.trim()).filter(Boolean);
+  let group = document.getElementById('cntGroup').value.trim();
+  const reference = document.getElementById('cntRef').value.trim();
+  if (!name) { showToast('Please enter a name'); return; }
+  if (!phones.length) { showToast('Please enter a phone number'); return; }
+  const same = cntGroups().find(g => g.toLowerCase() === group.toLowerCase());
+  if (same) group = same;
+  const dup = cntList.find(c => c.id !== id && (c.phones || []).some(p => phones.some(n => cntLast10(n) && cntLast10(n) === cntLast10(p))));
+  const doSave = () => {
+    let rec;
+    if (id) { rec = cntById(id); rec.group = group; rec.name = name; rec.phones = phones; rec.reference = reference; }
+    else { rec = { id: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), group, name, phones, reference }; cntList.push(rec); }
+    cntStore();
+    showToast('Contact saved');
+    cntSelect(rec.id);
+  };
+  if (dup) openConfirmModal('Duplicate number', 'This number is already saved for "' + dup.name + '". Save anyway?', doSave);
+  else doSave();
+}
+function cntDelete(id) {
+  const c = cntById(id);
+  if (!c) return;
+  openConfirmModal('Delete contact', 'Delete "' + c.name + '"?', () => {
+    cntList = cntList.filter(x => x.id !== id);
+    cntStore();
+    showToast('Contact deleted');
+    cntShowHome();
+  });
+}
+/* ---- backup helper: add contacts not already present (same name + same number) ---- */
+function cntRestore(arr) {
+  if (!Array.isArray(arr) || !arr.length) return '';
+  let added = 0;
+  arr.forEach(c => {
+    if (!c || !c.name || !Array.isArray(c.phones)) return;
+    const exists = cntList.some(x => (x.name || '').toLowerCase() === c.name.toLowerCase() && (x.phones || []).some(p => c.phones.some(n => cntLast10(n) === cntLast10(p))));
+    if (exists) return;
+    cntList.push({ id: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), group: c.group || '', name: c.name, phones: c.phones.slice(), reference: c.reference || '' });
+    added++;
+  });
+  if (added) cntStore();
+  return '\nContacts restored: ' + added + '.';
+}
+
+/* ---- Excel export module (isolated): builds a real .xlsx offline, no library needed ---- */
+function xlCrcTable() {
+  const t = [];
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; }
+  return t;
+}
+const XL_CRC = xlCrcTable();
+function xlCrc32(bytes) { let c = 0xFFFFFFFF; for (let i = 0; i < bytes.length; i++) c = XL_CRC[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function xlZip(files) {   /* files: [{name, text}] -> Uint8Array (stored zip) */
+  const enc = new TextEncoder(), parts = [], central = [];
+  let offset = 0;
+  const u16 = v => [v & 255, (v >> 8) & 255], u32 = v => [v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255];
+  files.forEach(f => {
+    const name = enc.encode(f.name), data = enc.encode(f.text), crc = xlCrc32(data);
+    const lh = [0x50,0x4B,0x03,0x04, ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(data.length), ...u32(data.length), ...u16(name.length), ...u16(0)];
+    parts.push(new Uint8Array(lh), name, data);
+    central.push({ name, crc, size: data.length, offset });
+    offset += lh.length + name.length + data.length;
+  });
+  let cdSize = 0;
+  central.forEach(c => {
+    const ch = [0x50,0x4B,0x01,0x02, ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(c.crc), ...u32(c.size), ...u32(c.size), ...u16(c.name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(c.offset)];
+    parts.push(new Uint8Array(ch), c.name);
+    cdSize += ch.length + c.name.length;
+  });
+  parts.push(new Uint8Array([0x50,0x4B,0x05,0x06, ...u16(0), ...u16(0), ...u16(central.length), ...u16(central.length), ...u32(cdSize), ...u32(offset), ...u16(0)]));
+  const total = parts.reduce((n, a) => n + a.length, 0), out = new Uint8Array(total);
+  let pos = 0; parts.forEach(a => { out.set(a, pos); pos += a.length; });
+  return out;
+}
+function xlEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, ''); }
+function xlColName(i) { let n = i + 1, s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; }
+function xlBuildXlsx(rows, widths, sheetName) {   /* rows[0] = header row (bold) */
+  const sheetRows = rows.map((r, ri) => '<row r="' + (ri + 1) + '">' + r.map((v, ci) =>
+    '<c r="' + xlColName(ci) + (ri + 1) + '" t="inlineStr"' + (ri === 0 ? ' s="1"' : '') + '><is><t xml:space="preserve">' + xlEsc(v) + '</t></is></c>').join('') + '</row>').join('');
+  const cols = widths.map((w, i) => '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>').join('');
+  const X = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+  return xlZip([
+    { name: '[Content_Types].xml', text: X + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>' },
+    { name: '_rels/.rels', text: X + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' },
+    { name: 'xl/workbook.xml', text: X + '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="' + xlEsc(sheetName) + '" sheetId="1" r:id="rId1"/></sheets></workbook>' },
+    { name: 'xl/_rels/workbook.xml.rels', text: X + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>' },
+    { name: 'xl/styles.xml', text: X + '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>' },
+    { name: 'xl/worksheets/sheet1.xml', text: X + '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>' + cols + '</cols><sheetData>' + sheetRows + '</sheetData></worksheet>' }
+  ]);
+}
+function cntExportExcel() {
+  if (!cntList.length) { showToast('No contacts to export'); return; }
+  const list = cntList.slice().sort((a, b) => ((a.group || '').toLowerCase()).localeCompare((b.group || '').toLowerCase()) || (a.name || '').localeCompare(b.name || ''));
+  const maxPh = Math.max(1, ...list.map(c => (c.phones || []).length));
+  const header = ['Group', 'Name'];
+  for (let i = 1; i <= maxPh; i++) header.push('Phone ' + i);
+  header.push('Reference');
+  const rows = [header].concat(list.map(c => {
+    const r = [c.group || '', c.name || ''];
+    for (let i = 0; i < maxPh; i++) r.push((c.phones || [])[i] || '');
+    r.push(c.reference || '');
+    return r;
+  }));
+  const widths = [16, 24]; for (let i = 0; i < maxPh; i++) widths.push(16); widths.push(30);
+  const bytes = xlBuildXlsx(rows, widths, 'Contacts');
+  const now = new Date();
+  const stamp = String(now.getDate()).padStart(2, '0') + String(now.getMonth() + 1).padStart(2, '0') + String(now.getFullYear()).slice(-2);
+  const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'Contacts_' + stamp + '.xlsx';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  showToast('Excel saved: ' + list.length + ' contact(s)');
+}
+/* ===================== END CONTACTS MODULE ===================== */
+
 /* ===================== FILE RULES MODULE (isolated) =====================
    One place for every size limit. Change a number here, nothing else needs touching.
    maxMB: null = no per-file limit (still counts toward the record total). */
@@ -2251,7 +2582,7 @@ async function deleteCurrentRecord() {
 
 async function exportBackup() {
   const records = await dbGetAll();
-  const blob = new Blob([JSON.stringify({ records, assetsVault: astVaultRaw() }, null, 2)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify({ records, assetsVault: astVaultRaw(), contacts: cntRaw() }, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL ? URL.createObjectURL(blob) : "";
   const now = new Date();
@@ -2271,7 +2602,7 @@ function importBackup() {
     const payload = JSON.parse(e.target.result);
     if (payload.records) {
       for (const r of payload.records) await dbAdd(r);
-      const astMsg = astRestoreVault(payload.assetsVault);
+      const astMsg = astRestoreVault(payload.assetsVault) + cntRestore(payload.contacts);
       await refreshCache();
       renderAllRecordsList();
       openInfoModal("Restore", "Data restored successfully." + astMsg);
@@ -2526,7 +2857,7 @@ async function driveBackupNow(){
     // Never replace the Drive file with empty data (e.g. new phone / cleared memory)
     if(records.length===0 && !astVaultRaw()){ empty=true; }
     else{
-      const content=JSON.stringify({app:DRIVE_APP_NAME,year:year,exportedAt:new Date().toISOString(),records:records,assetsVault:astVaultRaw()});
+      const content=JSON.stringify({app:DRIVE_APP_NAME,year:year,exportedAt:new Date().toISOString(),records:records,assetsVault:astVaultRaw(),contacts:cntRaw()});
       const folderId=await driveEnsureFolder();
       await driveUploadFile(folderId,name,content);
     }
@@ -2592,7 +2923,7 @@ function driveRestoreFile(fileId,name){
 }
 async function driveApplyRestore(data){
   if(!data || !Array.isArray(data.records)){ driveShowMessage('Restore','Invalid backup file.','⚠️'); return false; }
-  const astMsg=astRestoreVault(data.assetsVault);
+  const astMsg=astRestoreVault(data.assetsVault)+cntRestore(data.contacts);
   const key=r=>((r.docType||'')+'||'+(r.itemName||'')).toLowerCase();
   const have=new Set((await dbGetAll()).map(key));
   let added=0, skipped=0;
@@ -2683,6 +3014,7 @@ const HELP_PRIVACY_URL='https://asm-cdm.github.io/asm-privacy/';
 const HELP_TOPICS=[
   {icon:'➕',title:'Add / Edit',text:'Save a document. Choose or type the Document Type (use + Add / Edit to manage types), enter the item name, add remarks if you like, and upload up to 5 files (JPEG, PNG, text, PDF up to 15 MB, Excel up to 5 MB, audio up to 25 MB, short video up to 10 MB; all files in one record up to 60 MB in total, add the rest in the next record), and add up to 5 links with a short explanation (videos or useful pages). Press Save Document. The app warns you if the same type and item already exist.'},
   {icon:'🔍',title:'Search / View',text:'Find your documents. Type in the search box or pick from the list, then tap a record to open it. You can view the attached files, share selected details and files on WhatsApp, edit the record, or delete it.'},
+  {icon:'📇',title:'Contacts',text:'Your own contact book, separate from the phone. Tap + Add, choose or type a Group (Painter, Plumber...), enter Name, one or more phone numbers and a Reference. To find someone, type a name, group or number in the search box and use the Up / Down arrows and Enter (or just tap). Typing a group name lists everyone in that group. Open a contact to Call, WhatsApp, Edit or Delete. Contacts are included in Backup / Restore. The ⬇ Excel button saves all contacts as an Excel file (separate from backup).'},
   {icon:'💾',title:'Backup / Restore',text:'Keep your documents safe. Download Backup saves a file on your phone, and Restore from File adds it back. Sign in with Google to back up to your own Google Drive. On a new phone, sign in with the same Google account and press Restore from Google Drive. Backups include your uploaded files, so they can be large. Delete All Data erases everything, so use it carefully.'},
   {icon:'🔒',title:'Privacy Policy',text:'Your documents stay on this device. If you use Google Drive backup, a copy goes only to your own Google Drive, into files this app creates. We do not collect, sell or share your data, and we cannot see it. You can remove the app\'s access any time at myaccount.google.com/permissions.',link:HELP_PRIVACY_URL}
 ];
