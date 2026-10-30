@@ -286,11 +286,16 @@
   .file-input-wrap{ border:1px solid var(--border); border-radius:10px; padding:10px; margin-top:6px; background:#fafafa; }
   .hint{font-size:.75rem;color:var(--muted);margin-top:4px;}
   .toast{
-    position:fixed;bottom:85px;left:50%;transform:translateX(-50%);
-    background:#333;color:#fff;padding:10px 18px;border-radius:20px;font-size:.85rem;
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    max-width:85%;text-align:center;line-height:1.4;
+    background:#333;color:#fff;padding:14px 22px;border-radius:14px;font-size:.9rem;
     opacity:0;pointer-events:none;transition:.25s;z-index:10000;
   }
-  .toast.show{opacity:1;bottom:95px;}
+  .toast.show{opacity:1;}
+  /* centered popup with OK button (used for file-limit messages) */
+  .center-popup-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:10001;padding:20px;}
+  .center-popup-box{background:#fff;border-radius:14px;padding:20px 18px 16px;max-width:360px;width:100%;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.3);}
+  .center-popup-msg{font-size:.92rem;line-height:1.5;color:#222;white-space:pre-line;margin-bottom:16px;word-break:break-word;}
   
   footer{ 
     position:fixed;bottom:0;left:0;right:0; 
@@ -448,13 +453,13 @@
         <label for="fRemarks">Remarks / Description</label>
         <textarea id="fRemarks" rows="2" placeholder="Enter optional extra details or notes..."></textarea>
 
-        <label for="fFiles">Upload Documents (PDF / JPEG / PNG / Audio, max 5 uploads)</label>
-        <input type="file" id="fFiles" accept=".jpg,.jpeg,.png,.pdf,.txt,.mp3,.m4a,.wav,.ogg,.opus,.aac,image/jpeg,image/png,application/pdf,text/plain,audio/*" multiple onchange="handleFileSelect(event)">
+        <label for="fFiles">Upload Documents (PDF / JPEG / PNG / Excel / Audio / Short Video, max 5 uploads)</label>
+        <input type="file" id="fFiles" accept=".jpg,.jpeg,.png,.pdf,.txt,.xls,.xlsx,.csv,.mp3,.m4a,.wav,.ogg,.opus,.aac,.mp4,.mov,.m4v,.webm,.3gp,image/jpeg,image/png,application/pdf,text/plain,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,audio/*,video/*" multiple onchange="handleFileSelect(event)">
         
         <div class="file-input-wrap" id="existingFilesWrap" style="display:none;">
           <div class="file-grid-container" id="existingFilesGrid"></div>
         </div>
-        <div class="hint">Up to 5 files allowed.</div>
+        <div class="hint">Up to 5 files, max 60 MB total per record. PDF 15 MB, Excel 5 MB, Audio 25 MB, Video 10 MB each. Add the rest in the next record.</div>
 
         <label style="margin-top:14px;display:block;">Links (videos / useful pages, max 5)</label>
         <div id="linksFormList"></div>
@@ -650,6 +655,7 @@
 </main>
 
 <div class="toast" id="toast"></div>
+<div class="center-popup-overlay" id="centerPopup"><div class="center-popup-box"><div class="center-popup-msg" id="centerPopupMsg"></div><button type="button" class="btn btn-primary" style="width:100%;" onclick="closePopup()">OK</button></div></div>
 
 <!-- DOCUMENT TYPE ADD/EDIT POPUP MODAL -->
 <div id="addDocTypeModal" class="modal">
@@ -1526,6 +1532,22 @@ function renderRecordFiles() {
             <span>View PDF</span>
           </div>
         </div>`;
+    } else if (fileKind(f) === "video") {
+      previewHtml = `
+        <div class="file-preview-box" onclick="openFileViewer(${idx})">
+          <div class="pdf-badge-box">
+            <span style="font-size:1.5rem;">🎬</span>
+            <span>▶ Play</span>
+          </div>
+        </div>`;
+    } else if (fileKind(f) === "excel") {
+      previewHtml = `
+        <div class="file-preview-box" onclick="openFileViewer(${idx})">
+          <div class="pdf-badge-box">
+            <span style="font-size:1.5rem;">📊</span>
+            <span>Excel</span>
+          </div>
+        </div>`;
     } else if (isText) {
       previewHtml = `
         <div class="file-preview-box" onclick="openFileViewer(${idx})">
@@ -1567,6 +1589,20 @@ function openFileViewer(index) {
         <button type="button" class="btn btn-primary" onclick="openImageInNewTab(${index})">Open Image</button>
       </div>`;
     zoomable = false;
+  } else if (fileKind(file) === "video") {
+    const vmime = (file.type && file.type.startsWith("video/")) ? file.type : guessMimeFromName(file.name);
+    const vsrc = (file.data || "").replace(/^data:[^;,]*/, "data:" + vmime);
+    innerHtml = `<div style="padding:16px 14px; text-align:center;">
+        <p style="margin:0 0 10px; font-size:0.9rem; word-break:break-all;">${escapeHtml(file.name)}</p>
+        <video controls playsinline preload="metadata" style="width:100%; max-height:55vh; border-radius:8px; background:#000;" src="${vsrc}"></video>
+      </div>`;
+  } else if (fileKind(file) === "excel") {
+    innerHtml = `<div style="padding:30px 20px; text-align:center;">
+        <div style="font-size:2.2rem;">📊</div>
+        <p style="margin:8px 0 6px; font-size:0.9rem; word-break:break-all;">${escapeHtml(file.name)}</p>
+        <p style="margin:0 0 16px; color:var(--muted); font-size:0.9rem;">Tap below to open or save this file, then open it in Excel / Sheets.</p>
+        <button type="button" class="btn btn-primary" onclick="downloadStoredFile(${index})">Open / Download</button>
+      </div>`;
   } else if (file.type && file.type.includes("pdf")) {
     innerHtml = `<div id="pdfOpenBox" style="padding:30px 20px; text-align:center;">
         <p style="margin:0 0 16px; color:var(--muted); font-size:0.9rem;">Tap below to open this PDF in your phone's own viewer.</p>
@@ -1655,18 +1691,21 @@ function guessMimeFromName(name) {
   if (ext === "aac") return "audio/aac";
   if (ext === "wav") return "audio/wav";
   if (ext === "ogg" || ext === "opus") return "audio/ogg";
+  if (ext === "mp4" || ext === "m4v") return "video/mp4";
+  if (ext === "mov") return "video/quicktime";
+  if (ext === "webm") return "video/webm";
+  if (ext === "3gp") return "video/3gpp";
+  if (ext === "xlsx") return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  if (ext === "xls") return "application/vnd.ms-excel";
+  if (ext === "csv") return "text/csv";
   return "application/pdf";
 }
 
 /* ---- Audio module (isolated): helpers, size limit, in-app player ---- */
-const AUDIO_MAX_BYTES = 25 * 1024 * 1024;
 function fileIsAudio(f) {
   if (!f) return false;
   if (f.type && f.type.startsWith("audio/")) return true;
   return /\.(mp3|m4a|wav|ogg|opus|aac)$/i.test(f.name || "");
-}
-function audioTooBig(file) {
-  return fileIsAudioName(file.name, file.type) && file.size > AUDIO_MAX_BYTES;
 }
 function fileIsAudioName(name, type) { return fileIsAudio({ name: name, type: type }); }
 function audioPlayerHtml(file) {
@@ -1906,18 +1945,85 @@ function fallbackWhatsAppTextShare(text) {
   window.open(whatsappUrl, "_blank");
 }
 
+
+/* ===================== FILE RULES MODULE (isolated) =====================
+   One place for every size limit. Change a number here, nothing else needs touching.
+   maxMB: null = no per-file limit (still counts toward the record total). */
+const FILE_RULES = {
+  recordMaxMB: 60,
+  types: {
+    image: { label: "Image", maxMB: null },
+    pdf:   { label: "PDF",   maxMB: 15 },
+    text:  { label: "Text file", maxMB: null },
+    excel: { label: "Excel file", maxMB: 5 },
+    audio: { label: "Audio", maxMB: 25 },
+    video: { label: "Video", maxMB: 10 },
+    other: { label: "File", maxMB: null }
+  }
+};
+function fileKind(f) {
+  const name = (f && f.name) || "", type = (f && f.type) || "";
+  if (fileIsAudio(f)) return "audio";
+  if (type.startsWith("video/") || /\.(mp4|mov|m4v|webm|3gp)$/i.test(name)) return "video";
+  if (/\.(xls|xlsx|csv)$/i.test(name) || /spreadsheet|ms-excel|csv/i.test(type)) return "excel";
+  if (type.startsWith("image/")) return "image";
+  if (type.includes("pdf")) return "pdf";
+  if (type.includes("text")) return "text";
+  return "other";
+}
+function fmtMB(bytes) { return (bytes / 1048576).toFixed(1); }
+function storedFileBytes(f) {
+  const d = (f && f.data) || "";
+  const i = d.indexOf(",");
+  return Math.round((d.length - (i + 1)) * 3 / 4);
+}
+function recordUsedBytes() {
+  return [...pendingKeptFiles, ...pendingNewFiles].reduce((sum, f) => sum + storedFileBytes(f), 0);
+}
+/* returns "" if file is OK, else the message to show */
+function checkFileAgainstRules(file, usedBytes) {
+  const kind = fileKind({ name: file.name, type: file.type || guessMimeFromName(file.name) });
+  const rule = FILE_RULES.types[kind];
+  if (rule.maxMB && file.size > rule.maxMB * 1048576) {
+    let m = rule.label + " too large (" + fmtMB(file.size) + " MB). Max " + rule.maxMB + " MB each.\n\"" + file.name + "\"";
+    if (kind === "video") m += "\n\nFor bigger videos, save the video as a Link (Links section).";
+    return m;
+  }
+  const total = usedBytes + file.size;
+  if (total > FILE_RULES.recordMaxMB * 1048576) {
+    return "Record total " + fmtMB(total) + " MB. Max " + FILE_RULES.recordMaxMB + " MB.\n\"" + file.name + "\" cannot be added here.\n\nPlease add it in the next record.";
+  }
+  return "";
+}
+/* ---- Download / open helper for files the app cannot preview (Excel) ---- */
+function downloadStoredFile(index) {
+  if (!currentRecord || !currentRecord.files[index]) return;
+  const f = currentRecord.files[index];
+  const blob = base64ToFile(f.data, f.name, f.type || guessMimeFromName(f.name));
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = f.name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+/* ===================== END FILE RULES MODULE ===================== */
+
 async function handleFileSelect(e) {
   const files = Array.from(e.target.files);
-  if (pendingKeptFiles.length + pendingNewFiles.length + files.length > CONFIG.maxFiles) {
-    showToast("Max " + CONFIG.maxFiles + " files allowed");
-    return;
-  }
+  const msgs = [];
   for (const f of files) {
-    if (audioTooBig(f)) { showToast("Audio too large (" + (f.size / 1048576).toFixed(1) + " MB). Max " + (AUDIO_MAX_BYTES / 1048576) + " MB: " + f.name); continue; }
+    if (pendingKeptFiles.length + pendingNewFiles.length >= CONFIG.maxFiles) {
+      msgs.push("Max " + CONFIG.maxFiles + " files per record.\n\"" + f.name + "\" not added. Please add it in the next record.");
+      continue;
+    }
+    const problem = checkFileAgainstRules(f, recordUsedBytes());
+    if (problem) { msgs.push(problem); continue; }
     const base64 = await fileToBase64(f);
     pendingNewFiles.push({ name: f.name, type: f.type || guessMimeFromName(f.name), data: base64 });
   }
+  e.target.value = "";
   renderExistingFilesPreview();
+  if (msgs.length) showPopup(msgs.join("\n\n- - -\n\n"));
 }
 
 
@@ -2023,6 +2129,22 @@ function renderExistingFilesPreview() {
           <div class="pdf-badge-box">
             <span style="font-size:1.5rem;">📄</span>
             <span>PDF File</span>
+          </div>
+        </div>`;
+    } else if (fileKind(f) === "video") {
+      previewHtml = `
+        <div class="file-preview-box">
+          <div class="pdf-badge-box">
+            <span style="font-size:1.5rem;">🎬</span>
+            <span>Video File</span>
+          </div>
+        </div>`;
+    } else if (fileKind(f) === "excel") {
+      previewHtml = `
+        <div class="file-preview-box">
+          <div class="pdf-badge-box">
+            <span style="font-size:1.5rem;">📊</span>
+            <span>Excel File</span>
           </div>
         </div>`;
     } else if (isText) {
@@ -2559,7 +2681,7 @@ function firstRunStartFresh(){
 /* ===================== HELP MODULE (isolated - text only, never touches data) ===================== */
 const HELP_PRIVACY_URL='https://asm-cdm.github.io/asm-privacy/';
 const HELP_TOPICS=[
-  {icon:'➕',title:'Add / Edit',text:'Save a document. Choose or type the Document Type (use + Add / Edit to manage types), enter the item name, add remarks if you like, and upload up to 5 files (PDF, JPEG, PNG, text or audio up to 5 MB each), and add up to 5 links with a short explanation (videos or useful pages). Press Save Document. The app warns you if the same type and item already exist.'},
+  {icon:'➕',title:'Add / Edit',text:'Save a document. Choose or type the Document Type (use + Add / Edit to manage types), enter the item name, add remarks if you like, and upload up to 5 files (JPEG, PNG, text, PDF up to 15 MB, Excel up to 5 MB, audio up to 25 MB, short video up to 10 MB; all files in one record up to 60 MB in total, add the rest in the next record), and add up to 5 links with a short explanation (videos or useful pages). Press Save Document. The app warns you if the same type and item already exist.'},
   {icon:'🔍',title:'Search / View',text:'Find your documents. Type in the search box or pick from the list, then tap a record to open it. You can view the attached files, share selected details and files on WhatsApp, edit the record, or delete it.'},
   {icon:'💾',title:'Backup / Restore',text:'Keep your documents safe. Download Backup saves a file on your phone, and Restore from File adds it back. Sign in with Google to back up to your own Google Drive. On a new phone, sign in with the same Google account and press Restore from Google Drive. Backups include your uploaded files, so they can be large. Delete All Data erases everything, so use it carefully.'},
   {icon:'🔒',title:'Privacy Policy',text:'Your documents stay on this device. If you use Google Drive backup, a copy goes only to your own Google Drive, into files this app creates. We do not collect, sell or share your data, and we cannot see it. You can remove the app\'s access any time at myaccount.google.com/permissions.',link:HELP_PRIVACY_URL}
@@ -2602,7 +2724,16 @@ function showToast(msg) {
   const t = document.getElementById("toast");
   t.textContent = msg;
   t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 2500);
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove("show"), 2500);
+}
+/* Centered popup with OK button - stays until tapped */
+function showPopup(msg) {
+  document.getElementById("centerPopupMsg").textContent = msg;
+  document.getElementById("centerPopup").style.display = "flex";
+}
+function closePopup() {
+  document.getElementById("centerPopup").style.display = "none";
 }
 </script>
 <script>
